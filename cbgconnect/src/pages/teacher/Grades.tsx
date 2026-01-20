@@ -1,162 +1,288 @@
-// src/pages/teacher/Grades.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Search, 
-  Filter, 
-  Download,
+  Plus, 
+  Trash2, 
+  Upload, 
+  Download, 
+  Search,
+  Edit2,
   TrendingUp,
-  Award,
-  Users,
-  BookOpen,
   BarChart3,
-  Eye,
-  Edit,
-  Plus
+  Loader,
+  FileUp,
+  Save,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from 'sonner';
+import { apiCall } from '@/lib/api';
 
-interface GradebookEntry {
-  studentId: string;
-  studentName: string;
-  className: string;
-  grades: {
-    [assignmentId: string]: number;
-  };
-  average: number;
-  attendance: number;
-  status: 'passing' | 'at_risk' | 'failing';
+interface Grade {
+  id: number;
+  student_id: number;
+  subject_id: number;
+  student_name: string;
+  subject_name: string;
+  assignment_name: string;
+  marks_obtained: number;
+  total_marks: number;
+  percentage: number;
+  grade: string;
 }
 
 interface GradeDistribution {
-  range: string;
-  count: number;
-  percentage: number;
-  color: string;
+  A: number;
+  B: number;
+  C: number;
+  D: number;
+  F: number;
 }
 
-export default function Grades() {
-  const [selectedClass, setSelectedClass] = useState<string>('all');
+interface Student {
+  id: number;
+  name: string;
+  student_id: string;
+  class_name: string;
+}
+
+export default function TeacherGrades() {
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const gradebookEntries: GradebookEntry[] = [
-    {
-      studentId: 'GS2023001',
-      studentName: 'Sarah Johnson',
-      className: 'Grade 10-A',
-      grades: {
-        'assignment1': 85,
-        'assignment2': 92,
-        'quiz1': 88,
-        'midterm': 90
-      },
-      average: 89,
-      attendance: 95,
-      status: 'passing'
-    },
-    {
-      studentId: 'BS2023001',
-      studentName: 'Michael Chen',
-      className: 'Grade 11-B',
-      grades: {
-        'assignment1': 78,
-        'assignment2': 85,
-        'quiz1': 82,
-        'midterm': 80
-      },
-      average: 81,
-      attendance: 92,
-      status: 'passing'
-    },
-    {
-      studentId: 'GS2023002',
-      studentName: 'Emma Wilson',
-      className: 'Grade 12-A',
-      grades: {
-        'assignment1': 92,
-        'assignment2': 95,
-        'quiz1': 90,
-        'midterm': 93
-      },
-      average: 93,
-      attendance: 98,
-      status: 'passing'
-    },
-    {
-      studentId: 'BS2023002',
-      studentName: 'David Rodriguez',
-      className: 'Grade 10-B',
-      grades: {
-        'assignment1': 65,
-        'assignment2': 70,
-        'quiz1': 68,
-        'midterm': 62
-      },
-      average: 66,
-      attendance: 85,
-      status: 'at_risk'
-    },
-    {
-      studentId: 'BS2023003',
-      studentName: 'Alex Turner',
-      className: 'Grade 11-B',
-      grades: {
-        'assignment1': 58,
-        'assignment2': 62,
-        'quiz1': 55,
-        'midterm': 60
-      },
-      average: 59,
-      attendance: 78,
-      status: 'failing'
-    },
-  ];
-
-  const gradeDistribution: GradeDistribution[] = [
-    { range: '90-100', count: 8, percentage: 32, color: 'bg-green-500' },
-    { range: '80-89', count: 10, percentage: 40, color: 'bg-blue-500' },
-    { range: '70-79', count: 4, percentage: 16, color: 'bg-yellow-500' },
-    { range: '60-69', count: 2, percentage: 8, color: 'bg-orange-500' },
-    { range: '0-59', count: 1, percentage: 4, color: 'bg-red-500' },
-  ];
-
-  const filteredEntries = gradebookEntries.filter(entry => {
-    const matchesSearch = entry.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.studentId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = selectedClass === 'all' || entry.className === selectedClass;
-    return matchesSearch && matchesClass;
+  const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [selectedGrade, setSelectedGrade] = useState<string>('all');
+  const [gradeDistribution, setGradeDistribution] = useState<GradeDistribution>({A: 0, B: 0, C: 0, D: 0, F: 0});
+  
+  // Dialog states
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
+  
+  // Form states
+  const [formData, setFormData] = useState({
+    student_id: '',
+    subject_id: '',
+    assignment_name: '',
+    marks_obtained: '',
+    total_marks: '100'
   });
 
-  const getStatusColor = (status: GradebookEntry['status']) => {
-    switch (status) {
-      case 'passing': return 'bg-green-100 text-green-800';
-      case 'at_risk': return 'bg-yellow-100 text-yellow-800';
-      case 'failing': return 'bg-red-100 text-red-800';
+  useEffect(() => {
+    fetchGrades();
+    fetchStudents();
+  }, [selectedSubject, selectedGrade]);
+
+  const fetchGrades = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (selectedSubject !== 'all') params.append('subject_id', selectedSubject);
+      
+      const data = await apiCall.get(`/api/grades?${params}`);
+      setGrades(data);
+
+      // Fetch grade distribution
+      if (selectedSubject !== 'all') {
+        const dist = await apiCall.get(`/api/grades/distribution/${selectedSubject}`);
+        setGradeDistribution(dist);
+      }
+    } catch (error) {
+      toast.error('Failed to fetch grades');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const data = await apiCall.get('/api/students');
+      setStudents(data);
+    } catch (error) {
+      console.error('Failed to fetch students:', error);
+    }
+  };
+
+  const handleAddGrade = async () => {
+    if (!formData.student_id || !formData.subject_id || !formData.assignment_name || !formData.marks_obtained) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await apiCall.post('/api/grades', {
+        student_id: parseInt(formData.student_id),
+        subject_id: parseInt(formData.subject_id),
+        assignment_name: formData.assignment_name,
+        marks_obtained: parseFloat(formData.marks_obtained),
+        total_marks: parseFloat(formData.total_marks)
+      });
+
+      toast.success('Grade added successfully');
+      setFormData({
+        student_id: '',
+        subject_id: '',
+        assignment_name: '',
+        marks_obtained: '',
+        total_marks: '100'
+      });
+      setIsAddDialogOpen(false);
+      fetchGrades();
+    } catch (error) {
+      toast.error('Failed to add grade');
+      console.error(error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditGrade = async () => {
+    if (!editingGrade) return;
+
+    try {
+      setSaving(true);
+      await apiCall.put(`/api/grades/${editingGrade.id}`, {
+        marks_obtained: editingGrade.marks_obtained,
+        assignment_name: editingGrade.assignment_name
+      });
+
+      toast.success('Grade updated successfully');
+      setEditingGrade(null);
+      fetchGrades();
+    } catch (error) {
+      toast.error('Failed to update grade');
+      console.error(error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteGrade = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this grade?')) return;
+
+    try {
+      setSaving(true);
+      await apiCall.delete(`/api/grades/${id}`);
+      toast.success('Grade deleted successfully');
+      setGrades(grades.filter(g => g.id !== id));
+    } catch (error) {
+      toast.error('Failed to delete grade');
+      console.error(error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setSaving(true);
+      const formDataObj = new FormData();
+      formDataObj.append('file', file);
+
+      const response = await fetch('http://localhost:4000/api/grades/import/csv', {
+        method: 'POST',
+        body: formDataObj,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(`${data.imported} grades imported successfully`);
+        setIsImportDialogOpen(false);
+        fetchGrades();
+      } else {
+        toast.error(data.errors?.join('; ') || 'Import failed');
+      }
+    } catch (error) {
+      toast.error('Failed to import grades');
+      console.error(error);
+    } finally {
+      setSaving(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/grades/export/csv', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `grades-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Grades exported successfully');
+    } catch (error) {
+      toast.error('Failed to export grades');
+      console.error(error);
+    }
+  };
+
+  const filteredGrades = grades.filter(grade => {
+    const matchesSearch = grade.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         grade.student_id.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  // Calculate statistics
+  const stats = {
+    total: grades.length,
+    average: grades.length > 0 ? (grades.reduce((sum, g) => sum + g.percentage, 0) / grades.length).toFixed(1) : '0',
+    highest: grades.length > 0 ? Math.max(...grades.map(g => g.percentage)) : 0,
+    lowest: grades.length > 0 ? Math.min(...grades.map(g => g.percentage)) : 0
+  };
+
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case 'A': return 'bg-green-100 text-green-800';
+      case 'B': return 'bg-blue-100 text-blue-800';
+      case 'C': return 'bg-amber-100 text-amber-800';
+      case 'D': return 'bg-orange-100 text-orange-800';
+      case 'F': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getStatusText = (status: GradebookEntry['status']) => {
-    switch (status) {
-      case 'passing': return 'Passing';
-      case 'at_risk': return 'At Risk';
-      case 'failing': return 'Failing';
-      default: return 'Unknown';
-    }
+  const getPercentageColor = (percentage: number) => {
+    if (percentage >= 90) return 'text-green-600';
+    if (percentage >= 80) return 'text-blue-600';
+    if (percentage >= 70) return 'text-amber-600';
+    if (percentage >= 60) return 'text-orange-600';
+    return 'text-red-600';
   };
 
-  const getGradeColor = (grade: number) => {
-    if (grade >= 90) return 'text-green-600 font-bold';
-    if (grade >= 80) return 'text-blue-600';
-    if (grade >= 70) return 'text-yellow-600';
-    if (grade >= 60) return 'text-orange-600';
-    return 'text-red-600';
+  const totalDistribution = Object.values(gradeDistribution).reduce((a, b) => a + b, 0);
+  const distributionPercentages = {
+    A: totalDistribution > 0 ? ((gradeDistribution.A / totalDistribution) * 100).toFixed(1) : 0,
+    B: totalDistribution > 0 ? ((gradeDistribution.B / totalDistribution) * 100).toFixed(1) : 0,
+    C: totalDistribution > 0 ? ((gradeDistribution.C / totalDistribution) * 100).toFixed(1) : 0,
+    D: totalDistribution > 0 ? ((gradeDistribution.D / totalDistribution) * 100).toFixed(1) : 0,
+    F: totalDistribution > 0 ? ((gradeDistribution.F / totalDistribution) * 100).toFixed(1) : 0
   };
 
   return (
@@ -164,17 +290,29 @@ export default function Grades() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Grades</h1>
-          <p className="text-muted-foreground">Manage and analyze student grades</p>
+          <h1 className="text-3xl font-bold tracking-tight">Student Grades</h1>
+          <p className="text-muted-foreground">Manage student academic performance</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export Grades
+          <Button 
+            onClick={() => setIsImportDialogOpen(true)}
+            variant="outline"
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            Import CSV
           </Button>
-          <Button>
+          <Button 
+            onClick={handleExportCSV}
+            variant="outline"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button 
+            onClick={() => setIsAddDialogOpen(true)}
+          >
             <Plus className="mr-2 h-4 w-4" />
-            Enter Grades
+            Add Grade
           </Button>
         </div>
       </div>
@@ -184,256 +322,374 @@ export default function Grades() {
         <Card className="bg-white/50 backdrop-blur-sm">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold">
-                {Math.round(gradebookEntries.reduce((acc, e) => acc + e.average, 0) / gradebookEntries.length)}%
-              </div>
-              <p className="text-sm text-muted-foreground">Class Average</p>
+              <div className="text-2xl font-bold">{stats.total}</div>
+              <p className="text-sm text-muted-foreground">Total Grades</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-white/50 backdrop-blur-sm">
+        
+        <Card className="bg-blue-50/50 backdrop-blur-sm border-blue-200">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold">
-                {gradebookEntries.filter(e => e.status === 'passing').length}
-              </div>
-              <p className="text-sm text-muted-foreground">Passing Students</p>
+              <div className="text-2xl font-bold text-blue-600">{stats.average}%</div>
+              <p className="text-sm text-muted-foreground">Average</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-white/50 backdrop-blur-sm">
+
+        <Card className="bg-green-50/50 backdrop-blur-sm border-green-200">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold">
-                {gradebookEntries.filter(e => e.status === 'at_risk' || e.status === 'failing').length}
-              </div>
-              <p className="text-sm text-muted-foreground">At Risk/Failing</p>
+              <div className="text-2xl font-bold text-green-600">{stats.highest}%</div>
+              <p className="text-sm text-muted-foreground">Highest</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-white/50 backdrop-blur-sm">
+
+        <Card className="bg-red-50/50 backdrop-blur-sm border-red-200">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold">
-                {Math.round(gradebookEntries.reduce((acc, e) => acc + e.attendance, 0) / gradebookEntries.length)}%
-              </div>
-              <p className="text-sm text-muted-foreground">Avg Attendance</p>
+              <div className="text-2xl font-bold text-red-600">{stats.lowest}%</div>
+              <p className="text-sm text-muted-foreground">Lowest</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Grade Distribution */}
-        <Card className="lg:col-span-1 bg-white/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle>Grade Distribution</CardTitle>
-            <CardDescription>Current class grade spread</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {gradeDistribution.map((dist) => (
-                <div key={dist.range} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span>{dist.range}</span>
-                    <span className="font-medium">{dist.count} students ({dist.percentage}%)</span>
-                  </div>
-                  <Progress value={dist.percentage} className="h-2" />
-                </div>
-              ))}
-              
-              <div className="pt-4 border-t">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="font-medium">Top Performers</p>
-                    <p className="text-muted-foreground">3 students ≥ 90%</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Need Improvement</p>
-                    <p className="text-muted-foreground">3 students - 70%</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Gradebook Table */}
-        <Card className="lg:col-span-2 bg-white/50 backdrop-blur-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Gradebook</CardTitle>
-                <CardDescription>Student grades and performance</CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search students..."
-                    className="pl-9 w-[200px]"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="w-[140px]">
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Classes</SelectItem>
-                    <SelectItem value="Grade 10-A">Grade 10-A</SelectItem>
-                    <SelectItem value="Grade 11-B">Grade 11-B</SelectItem>
-                    <SelectItem value="Grade 12-A">Grade 12-A</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Assignment 1</TableHead>
-                    <TableHead>Assignment 2</TableHead>
-                    <TableHead>Quiz 1</TableHead>
-                    <TableHead>Midterm</TableHead>
-                    <TableHead>Average</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEntries.map((entry) => (
-                    <TableRow key={entry.studentId}>
-                      <TableCell className="font-medium">{entry.studentName}</TableCell>
-                      <TableCell>{entry.studentId}</TableCell>
-                      <TableCell>{entry.className}</TableCell>
-                      <TableCell className={getGradeColor(entry.grades.assignment1)}>
-                        {entry.grades.assignment1}%
-                      </TableCell>
-                      <TableCell className={getGradeColor(entry.grades.assignment2)}>
-                        {entry.grades.assignment2}%
-                      </TableCell>
-                      <TableCell className={getGradeColor(entry.grades.quiz1)}>
-                        {entry.grades.quiz1}%
-                      </TableCell>
-                      <TableCell className={getGradeColor(entry.grades.midterm)}>
-                        {entry.grades.midterm}%
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${getGradeColor(entry.average)}`}>
-                            {entry.average}%
-                          </span>
-                          <Progress value={entry.average} className="w-16 h-2" />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(entry.status)}>
-                          {getStatusText(entry.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance Analysis */}
+      {/* Filters */}
       <Card className="bg-white/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle>Performance Analysis</CardTitle>
-          <CardDescription>Detailed analysis of student performance</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="space-y-4">
-              <h4 className="font-medium flex items-center">
-                <TrendingUp className="mr-2 h-4 w-4 text-green-600" />
-                Top Performers
-              </h4>
-              <div className="space-y-2">
-                {gradebookEntries
-                  .sort((a, b) => b.average - a.average)
-                  .slice(0, 3)
-                  .map((entry, index) => (
-                    <div key={entry.studentId} className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center gap-2">
-                        <Award className={`h-5 w-5 ${
-                          index === 0 ? 'text-amber-500' : 
-                          index === 1 ? 'text-gray-400' : 'text-amber-800'
-                        }`} />
-                        <span>{entry.studentName}</span>
-                      </div>
-                      <span className="font-bold">{entry.average}%</span>
-                    </div>
-                  ))}
-              </div>
+        <CardContent className="pt-6">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <Label htmlFor="subject">Subject</Label>
+              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  <SelectItem value="1">Mathematics</SelectItem>
+                  <SelectItem value="2">English</SelectItem>
+                  <SelectItem value="3">Science</SelectItem>
+                  <SelectItem value="4">History</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="space-y-4">
-              <h4 className="font-medium flex items-center">
-                <BookOpen className="mr-2 h-4 w-4 text-amber-600" />
-                Improvement Needed
-              </h4>
-              <div className="space-y-2">
-                {gradebookEntries
-                  .filter(e => e.status === 'at_risk' || e.status === 'failing')
-                  .map((entry) => (
-                    <div key={entry.studentId} className="flex items-center justify-between p-2 border rounded">
-                      <span>{entry.studentName}</span>
-                      <div className="text-right">
-                        <span className="font-bold text-red-600">{entry.average}%</span>
-                        <p className="text-xs text-muted-foreground">Attendance: {entry.attendance}%</p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="font-medium flex items-center">
-                <BarChart3 className="mr-2 h-4 w-4 text-blue-600" />
-                Quick Actions
-              </h4>
-              <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  Generate Report Cards
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Send Progress Reports
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Schedule Parent Meetings
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  Create Grade Curve
-                </Button>
-              </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search student..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Tabs */}
+      <Tabs defaultValue="grades" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="grades">Grades</TabsTrigger>
+          {selectedSubject !== 'all' && <TabsTrigger value="distribution">Distribution</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="grades" className="space-y-4">
+          {/* Grades Table */}
+          <Card className="bg-white/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle>Student Grades</CardTitle>
+              <CardDescription>
+                {filteredGrades.length} grades found
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader className="h-8 w-8 animate-spin" />
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Assignment</TableHead>
+                        <TableHead>Marks</TableHead>
+                        <TableHead>Percentage</TableHead>
+                        <TableHead>Grade</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredGrades.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <p className="text-muted-foreground">No grades found</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredGrades.map((grade) => (
+                          <TableRow key={grade.id} className="hover:bg-gray-50/50">
+                            <TableCell className="font-medium">{grade.student_name}</TableCell>
+                            <TableCell>{grade.subject_name}</TableCell>
+                            <TableCell>{grade.assignment_name}</TableCell>
+                            <TableCell>
+                              <span className="font-medium">
+                                {grade.marks_obtained}/{grade.total_marks}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`font-semibold ${getPercentageColor(grade.percentage)}`}>
+                                {grade.percentage.toFixed(1)}%
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getGradeColor(grade.grade)}>
+                                {grade.grade}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingGrade(grade)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteGrade(grade.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="distribution" className="space-y-4">
+          {/* Grade Distribution */}
+          <Card className="bg-white/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle>Grade Distribution</CardTitle>
+              <CardDescription>
+                Distribution of grades for the selected subject
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {['A', 'B', 'C', 'D', 'F'].map((gradeLabel) => (
+                <div key={gradeLabel}>
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge className={`${gradeLabel === 'A' ? 'bg-green-100 text-green-800' : gradeLabel === 'B' ? 'bg-blue-100 text-blue-800' : gradeLabel === 'C' ? 'bg-amber-100 text-amber-800' : gradeLabel === 'D' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}`}>
+                      Grade {gradeLabel}
+                    </Badge>
+                    <span className="text-sm font-medium">
+                      {gradeDistribution[gradeLabel as keyof GradeDistribution]} students ({distributionPercentages[gradeLabel as keyof typeof distributionPercentages]}%)
+                    </span>
+                  </div>
+                  <Progress 
+                    value={parseFloat(distributionPercentages[gradeLabel as keyof typeof distributionPercentages] as string)} 
+                    className="h-2"
+                  />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add Grade Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Grade</DialogTitle>
+            <DialogDescription>
+              Enter grade information for a student
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="student">Student</Label>
+              <Select 
+                value={formData.student_id} 
+                onValueChange={(value) => setFormData({...formData, student_id: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select student" />
+                </SelectTrigger>
+                <SelectContent>
+                  {students.map(student => (
+                    <SelectItem key={student.id} value={student.id.toString()}>
+                      {student.name} ({student.student_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="subject">Subject</Label>
+              <Select 
+                value={formData.subject_id} 
+                onValueChange={(value) => setFormData({...formData, subject_id: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Mathematics</SelectItem>
+                  <SelectItem value="2">English</SelectItem>
+                  <SelectItem value="3">Science</SelectItem>
+                  <SelectItem value="4">History</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="assignment">Assignment Name</Label>
+              <Input
+                id="assignment"
+                placeholder="e.g., Midterm Exam, Quiz 1"
+                value={formData.assignment_name}
+                onChange={(e) => setFormData({...formData, assignment_name: e.target.value})}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="obtained">Marks Obtained</Label>
+                <Input
+                  id="obtained"
+                  type="number"
+                  placeholder="0"
+                  value={formData.marks_obtained}
+                  onChange={(e) => setFormData({...formData, marks_obtained: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="total">Total Marks</Label>
+                <Input
+                  id="total"
+                  type="number"
+                  placeholder="100"
+                  value={formData.total_marks}
+                  onChange={(e) => setFormData({...formData, total_marks: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleAddGrade} disabled={saving}>
+                {saving ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {saving ? 'Saving...' : 'Add Grade'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Grade Dialog */}
+      {editingGrade && (
+        <Dialog open={!!editingGrade} onOpenChange={() => setEditingGrade(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Grade</DialogTitle>
+              <DialogDescription>
+                Update grade for {editingGrade.student_name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Assignment Name</Label>
+                <Input
+                  placeholder="Assignment name"
+                  value={editingGrade.assignment_name}
+                  onChange={(e) => setEditingGrade({...editingGrade, assignment_name: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Marks Obtained</Label>
+                  <Input
+                    type="number"
+                    value={editingGrade.marks_obtained}
+                    onChange={(e) => setEditingGrade({...editingGrade, marks_obtained: parseFloat(e.target.value)})}
+                  />
+                </div>
+                <div>
+                  <Label>Total Marks</Label>
+                  <Input
+                    type="number"
+                    value={editingGrade.total_marks}
+                    disabled
+                  />
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-3 rounded">
+                <p className="text-sm text-muted-foreground">Calculated Percentage</p>
+                <p className="text-2xl font-bold">
+                  {((editingGrade.marks_obtained / editingGrade.total_marks) * 100).toFixed(1)}%
+                </p>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setEditingGrade(null)}>Cancel</Button>
+                <Button onClick={handleEditGrade} disabled={saving}>
+                  {saving ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  {saving ? 'Saving...' : 'Update Grade'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Import CSV Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Grades from CSV</DialogTitle>
+            <DialogDescription>
+              Select a CSV file to import grades in bulk. Format: student_id, subject_id, assignment_name, marks_obtained, total_marks
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                disabled={saving}
+                className="hidden"
+                id="csv-input"
+              />
+              <label htmlFor="csv-input" className="cursor-pointer">
+                <FileUp className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm font-medium">Click to upload CSV file</p>
+                <p className="text-xs text-muted-foreground">or drag and drop</p>
+              </label>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancel</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -97,6 +97,9 @@ function Auth() {
 
       if (response.data?.token) {
         setAuthToken(String(response.data.token))
+        // Store user info for dashboard use
+        localStorage.setItem('userId', response.data.user.id);
+        localStorage.setItem('userRole', response.data.user.role);
       }
 
       toast.success("Signed in", {

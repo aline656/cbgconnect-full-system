@@ -26,3 +26,22 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+export const apiCall = {
+  async get(url: string) {
+    const response = await api.get(url)
+    return response.data
+  },
+  async post(url: string, data: any) {
+    const response = await api.post(url, data)
+    return response.data
+  },
+  async put(url: string, data: any) {
+    const response = await api.put(url, data)
+    return response.data
+  },
+  async delete(url: string) {
+    const response = await api.delete(url)
+    return response.data
+  }
+}

@@ -101,7 +101,40 @@ const SystemSettings = () => {
     toast.error("This will reset all settings to default. Are you sure?", {
       action: {
         label: "Confirm",
-        onClick: () => toast.success("Settings reset to defaults")
+        onClick: () => {
+          toast.success("Settings reset to defaults")
+          setSettings({
+            general: {
+              schoolName: "CBG International School",
+              schoolCode: "CBG-2024",
+              timezone: "America/Los_Angeles",
+              language: "english",
+              dateFormat: "MM/DD/YYYY",
+              academicYear: "2024-2025"
+            },
+            security: {
+              require2FA: true,
+              sessionTimeout: 30,
+              passwordExpiry: 90,
+              loginAttempts: 5,
+              ipWhitelist: "",
+              enableAuditLog: true
+            },
+            email: {
+              smtpHost: "smtp.school.edu",
+              smtpPort: "587",
+              smtpUser: "noreply@school.edu",
+              emailFooter: "© 2024 CBG International School. All rights reserved."
+            },
+            backup: {
+              autoBackup: true,
+              backupFrequency: "daily",
+              retainBackups: 30,
+              backupLocation: "cloud",
+              lastBackup: "2024-10-20 02:00:00"
+            }
+          })
+        }
       },
     })
   }
@@ -548,6 +581,7 @@ const SystemSettings = () => {
                               ...settings,
                               email: { ...settings.email, smtpHost: e.target.value }
                             })}
+                            placeholder="smtp.server.com"
                           />
                         </div>
                         <div className="space-y-2">
@@ -559,6 +593,7 @@ const SystemSettings = () => {
                               ...settings,
                               email: { ...settings.email, smtpPort: e.target.value }
                             })}
+                            placeholder="587"
                           />
                         </div>
                         <div className="space-y-2">
@@ -570,6 +605,7 @@ const SystemSettings = () => {
                               ...settings,
                               email: { ...settings.email, smtpUser: e.target.value }
                             })}
+                            placeholder="noreply@school.edu"
                           />
                         </div>
                         <div className="space-y-2">
@@ -581,10 +617,16 @@ const SystemSettings = () => {
                           />
                         </div>
                       </div>
-                      <Button variant="outline" className="mt-4" onClick={handleTestEmail}>
-                        <Mail className="h-4 w-4 mr-2" />
-                        Test Email Configuration
-                      </Button>
+                      <div className="flex gap-3 mt-6">
+                        <Button onClick={handleTestEmail} className="flex-1 md:flex-none">
+                          <Mail className="h-4 w-4 mr-2" />
+                          Send Test Email
+                        </Button>
+                        <Button variant="outline" className="flex-1 md:flex-none">
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Verify Connection
+                        </Button>
+                      </div>
                     </div>
 
                     <Separator />
@@ -602,6 +644,130 @@ const SystemSettings = () => {
                           })}
                           rows={3}
                         />
+                      </div>
+                      <div className="mt-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                        <h5 className="font-medium text-gray-900 mb-2">Email Template Variables</h5>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                          <code className="px-2 py-1 bg-white rounded border border-gray-200">{'{student_name}'}</code>
+                          <code className="px-2 py-1 bg-white rounded border border-gray-200">{'{school_name}'}</code>
+                          <code className="px-2 py-1 bg-white rounded border border-gray-200">{'{admin_email}'}</code>
+                          <code className="px-2 py-1 bg-white rounded border border-gray-200">{'{date}'}</code>
+                          <code className="px-2 py-1 bg-white rounded border border-gray-200">{'{year}'}</code>
+                          <code className="px-2 py-1 bg-white rounded border border-gray-200">{'{support_phone}'}</code>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-4">Email Notifications</h4>
+                      <div className="space-y-3">
+                        {[
+                          { id: "studentEnrollment", label: "Student Enrollment", description: "Send email when new student enrolls" },
+                          { id: "feePayment", label: "Fee Payment Confirmation", description: "Send receipt for fee payments" },
+                          { id: "attendanceAlert", label: "Low Attendance Alert", description: "Notify parents of low attendance" },
+                          { id: "gradeUpdate", label: "Grade Updates", description: "Notify parents of grade changes" }
+                        ].map((notif) => (
+                          <div key={notif.id} className="flex items-center justify-between">
+                            <div>
+                              <Label className="font-medium">{notif.label}</Label>
+                              <p className="text-sm text-gray-500">{notif.description}</p>
+                            </div>
+                            <Switch defaultChecked />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* SMS Configuration */}
+                <Card className="border-gray-200 shadow-lg">
+                  <CardHeader>
+                    <CardTitle>SMS Configuration</CardTitle>
+                    <CardDescription>
+                      Configure SMS service for notifications
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="font-medium">Enable SMS Notifications</Label>
+                        <p className="text-sm text-gray-500">Send SMS alerts to parents and staff</p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="smsProvider">SMS Provider</Label>
+                        <Select defaultValue="twilio">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="twilio">Twilio</SelectItem>
+                            <SelectItem value="aws">AWS SNS</SelectItem>
+                            <SelectItem value="nexmo">Nexmo</SelectItem>
+                            <SelectItem value="custom">Custom Gateway</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="smsAccountId">Account ID / SID</Label>
+                        <Input id="smsAccountId" placeholder="Enter account ID" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="smsAuthToken">Auth Token / API Key</Label>
+                        <div className="relative">
+                          <Input id="smsAuthToken" type="password" placeholder="••••••••" />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-2 top-1/2 -translate-y-1/2"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="smsPhoneNumber">From Phone Number</Label>
+                        <Input id="smsPhoneNumber" placeholder="+1234567890" />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button>
+                        <Bell className="h-4 w-4 mr-2" />
+                        Send Test SMS
+                      </Button>
+                      <Button variant="outline">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Verify Gateway
+                      </Button>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-4">SMS Templates</h4>
+                      <div className="space-y-4">
+                        {[
+                          { id: "attendance", label: "Attendance Alert", template: "Hi {student_name}, your attendance is {percentage}%. " },
+                          { id: "payment", label: "Payment Reminder", template: "Reminder: Fee of {amount} is due by {date}. " },
+                          { id: "grade", label: "Grade Notification", template: "Your latest grade in {subject} is {grade}. " }
+                        ].map((template) => (
+                          <div key={template.id} className="space-y-2">
+                            <Label className="font-medium">{template.label}</Label>
+                            <Textarea
+                              placeholder={template.template}
+                              rows={2}
+                              defaultValue={template.template}
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </CardContent>

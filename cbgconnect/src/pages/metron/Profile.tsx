@@ -1,4 +1,5 @@
 // src/pages/metron/Profile.tsx
+import { useState, useEffect } from 'react';
 import { 
   User, 
   Mail, 
@@ -17,8 +18,118 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import apiService from '@/services/api';
 
 export default function Profile() {
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    department: '',
+    bio: '',
+    nationalId: ''
+  });
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const profile = await apiService.getProfileByRole('metron');
+        setUserProfile(profile);
+        
+        // Split name into first and last name
+        const nameParts = profile.name.split(' ');
+        setFormData({
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          email: profile.email || '',
+          phone: profile.phone || '',
+          position: 'Senior Metron',
+          department: profile.department || '',
+          joinDate: profile.joinDate ? new Date(profile.joinDate).toISOString().split('T')[0] : '',
+          bio: `Experienced Metron managing girls' dormitory and activities.`
+        });
+      } catch (err: any) {
+        console.error('Failed to fetch user profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  const handleSaveChanges = async () => {
+    try {
+      const response = await apiService.updateProfileByRole('metron', formData);
+      
+      // Update local state with the response
+      if (response.profile) {
+        setUserProfile(response.profile);
+        
+        // Update form data with the new profile data
+        const nameParts = response.profile.name.split(' ');
+        setFormData({
+          ...formData,
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          email: response.profile.email || '',
+          phone: response.profile.phone || '',
+          department: response.profile.department || '',
+        });
+      }
+      
+      // Show success message (you could use a toast here)
+      alert('Profile updated successfully!');
+    } catch (err: any) {
+      console.error('Failed to update profile:', err);
+      alert('Failed to update profile. Please try again.');
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB.');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const response = await apiService.uploadProfileImage('metron', file);
+      
+      if (response.profile) {
+        setUserProfile(response.profile);
+        alert('Profile image uploaded successfully!');
+      }
+    } catch (err: any) {
+      console.error('Failed to upload image:', err);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -27,7 +138,7 @@ export default function Profile() {
           <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
           <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
-        <Button>
+        <Button onClick={handleSaveChanges}>
           <Save className="mr-2 h-4 w-4" />
           Save Changes
         </Button>
@@ -39,14 +150,37 @@ export default function Profile() {
           <Card className="bg-white/50 backdrop-blur-sm">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center space-y-4">
-                <Avatar className="h-32 w-32">
-                  <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=MetronAdmin" />
-                  <AvatarFallback>MA</AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-32 w-32 cursor-pointer" onClick={() => document.getElementById('profileImageInput')?.click()}>
+                    <AvatarImage src={userProfile?.profileImage} />
+                    <AvatarFallback>{userProfile?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'MT'}</AvatarFallback>
+                  </Avatar>
+                  <input
+                    id="profileImageInput"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  {uploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-t-transparent"></div>
+                    </div>
+                  )}
+                </div>
                 <div className="text-center">
-                  <h3 className="text-xl font-bold">Sarah Johnson</h3>
+                  <h3 className="text-xl font-bold">{userProfile?.name || 'Loading...'}</h3>
                   <p className="text-muted-foreground">Senior Metron</p>
                   <Badge className="mt-2">Administrator</Badge>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => document.getElementById('profileImageInput')?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? 'Uploading...' : 'Change Photo'}
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -59,19 +193,21 @@ export default function Profile() {
             <CardContent className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Years of Service</span>
-                <span className="font-medium">5</span>
+                <span className="font-medium">
+                  {userProfile?.joinDate ? new Date().getFullYear() - new Date(userProfile.joinDate).getFullYear() : '0'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Managed Girls</span>
-                <span className="font-medium">156</span>
+                <span className="font-medium">{userProfile?.statistics?.totalGirlsManaged || '0'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Reports Submitted</span>
-                <span className="font-medium">342</span>
+                <span className="font-medium">{userProfile?.statistics?.reportsCompleted || '0'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Last Login</span>
-                <span className="font-medium">Today, 08:30 AM</span>
+                <span className="font-medium">Today, {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
               </div>
             </CardContent>
           </Card>
@@ -97,11 +233,11 @@ export default function Profile() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" defaultValue="Sarah" />
+                      <Input id="firstName" value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" defaultValue="Johnson" />
+                      <Input id="lastName" value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} />
                     </div>
                   </div>
 
@@ -112,7 +248,7 @@ export default function Profile() {
                         <div className="flex items-center rounded-l-md border border-r-0 px-3 bg-muted">
                           <Mail className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <Input id="email" type="email" defaultValue="sarah.j@school.edu" className="rounded-l-none" />
+                        <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="rounded-l-none" />
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -121,19 +257,19 @@ export default function Profile() {
                         <div className="flex items-center rounded-l-md border border-r-0 px-3 bg-muted">
                           <Phone className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <Input id="phone" defaultValue="+1 (555) 123-4567" className="rounded-l-none" />
+                        <Input id="phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="rounded-l-none" />
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="position">Position</Label>
-                    <Input id="position" defaultValue="Senior Metron" />
+                    <Input id="position" value={formData.position} onChange={(e) => setFormData({...formData, position: e.target.value})} />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="department">Department</Label>
-                    <Input id="department" defaultValue="Girls Dormitory Management" />
+                    <Input id="department" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})} />
                   </div>
 
                   <div className="space-y-2">
@@ -142,7 +278,7 @@ export default function Profile() {
                       <div className="flex items-center rounded-l-md border border-r-0 px-3 bg-muted">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <Input id="joinDate" type="date" defaultValue="2019-08-15" className="rounded-l-none" />
+                      <Input id="joinDate" type="date" value={formData.joinDate} onChange={(e) => setFormData({...formData, joinDate: e.target.value})} className="rounded-l-none" />
                     </div>
                   </div>
 
@@ -150,7 +286,8 @@ export default function Profile() {
                     <Label htmlFor="bio">Bio</Label>
                     <Textarea 
                       id="bio" 
-                      defaultValue="Senior Metron with 5 years of experience in managing girls dormitory and activities. Focused on creating a safe and nurturing environment for all students."
+                      value={formData.bio}
+                      onChange={(e) => setFormData({...formData, bio: e.target.value})}
                       className="min-h-[100px]"
                     />
                   </div>

@@ -1,5 +1,5 @@
 // src/pages/metron/GirlsManage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import apiService from '@/services/api';
 
 interface Girl {
   id: string;
@@ -43,44 +44,28 @@ interface Girl {
 export default function GirlsManage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'internal' | 'external'>('all');
+  const [girls, setGirls] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const girls: Girl[] = [
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      studentId: 'GS2023001',
-      type: 'internal',
-      grade: '12',
-      className: 'Science A',
-      age: 17,
-      guardianName: 'John Johnson',
-      guardianContact: '+1234567890',
-      email: 'sarah.j@school.edu',
-      status: 'active',
-      admissionDate: '2023-09-01',
-      activities: ['Volleyball', 'Music Club', 'Debate'],
-      dormitory: 'Rose Hall',
-      bed: 'B-204-A'
-    },
-    {
-      id: '2',
-      name: 'Emma Wilson',
-      studentId: 'GS2023002',
-      type: 'external',
-      grade: '11',
-      className: 'Arts B',
-      age: 16,
-      guardianName: 'Mary Wilson',
-      guardianContact: '+1234567891',
-      email: 'emma.w@school.edu',
-      status: 'active',
-      admissionDate: '2023-09-01',
-      activities: ['Art Club', 'Drama'],
-      dormitory: undefined,
-      bed: undefined
-    },
-    // Add more mock data as needed
-  ];
+  // Fetch girls data from database
+  useEffect(() => {
+    const fetchGirls = async () => {
+      try {
+        setLoading(true);
+        const response = await apiService.getGirls();
+        setGirls(response.girls || []);
+        setError(null);
+      } catch (err: any) {
+        console.error('Failed to fetch girls:', err);
+        setError('Failed to load girls data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGirls();
+  }, []);
 
   const filteredGirls = girls.filter(girl => {
     const matchesSearch = girl.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -90,6 +75,31 @@ export default function GirlsManage() {
   });
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="w-96">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-destructive font-medium">{error}</p>
+              <Button onClick={() => window.location.reload()} className="mt-4">
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -108,6 +108,7 @@ const AdminAuth = () => {
       setAuthToken(token)
       localStorage.setItem('isAuthenticated', 'true')
       localStorage.setItem('userRole', user.role)
+      localStorage.setItem('userId', user.id)
       localStorage.setItem('adminName', user.name)
       
       toast.success("Admin Login Successful", {

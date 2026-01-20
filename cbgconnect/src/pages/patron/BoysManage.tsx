@@ -1,5 +1,5 @@
 // src/pages/patron/BoysManage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import apiService from '@/services/api';
 
 interface Boy {
   id: string;
@@ -46,63 +47,28 @@ interface Boy {
 export default function BoysManage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'internal' | 'external'>('all');
+  const [boys, setBoys] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const boys: Boy[] = [
-    {
-      id: '1',
-      name: 'Michael Chen',
-      studentId: 'BS2023001',
-      type: 'internal',
-      grade: '12',
-      className: 'Science A',
-      age: 17,
-      guardianName: 'Robert Chen',
-      guardianContact: '+1234567890',
-      email: 'michael.c@school.edu',
-      status: 'active',
-      admissionDate: '2023-09-01',
-      activities: ['Basketball', 'Debate Club', 'Robotics'],
-      dormitory: 'Oak Hall',
-      bed: 'O-301-A',
-      disciplinaryPoints: 2
-    },
-    {
-      id: '2',
-      name: 'David Rodriguez',
-      studentId: 'BS2023002',
-      type: 'external',
-      grade: '11',
-      className: 'Arts B',
-      age: 16,
-      guardianName: 'Maria Rodriguez',
-      guardianContact: '+1234567891',
-      email: 'david.r@school.edu',
-      status: 'active',
-      admissionDate: '2023-09-01',
-      activities: ['Soccer', 'Music'],
-      dormitory: undefined,
-      bed: undefined,
-      disciplinaryPoints: 0
-    },
-    {
-      id: '3',
-      name: 'Alex Turner',
-      studentId: 'BS2023003',
-      type: 'internal',
-      grade: '10',
-      className: 'Science B',
-      age: 15,
-      guardianName: 'James Turner',
-      guardianContact: '+1234567892',
-      email: 'alex.t@school.edu',
-      status: 'active',
-      admissionDate: '2023-09-01',
-      activities: ['Swimming', 'Chess'],
-      dormitory: 'Oak Hall',
-      bed: 'O-302-B',
-      disciplinaryPoints: 5
-    },
-  ];
+  // Fetch boys data from database
+  useEffect(() => {
+    const fetchBoys = async () => {
+      try {
+        setLoading(true);
+        const response = await apiService.getBoys();
+        setBoys((response as any).boys || []);
+        setError(null);
+      } catch (err: any) {
+        console.error('Failed to fetch boys:', err);
+        setError('Failed to load boys data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBoys();
+  }, []);
 
   const filteredBoys = boys.filter(boy => {
     const matchesSearch = boy.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -112,6 +78,31 @@ export default function BoysManage() {
   });
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="w-96">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-destructive font-medium">{error}</p>
+              <Button onClick={() => window.location.reload()} className="mt-4">
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

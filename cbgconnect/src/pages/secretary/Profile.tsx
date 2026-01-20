@@ -1,3 +1,4 @@
+// src/pages/secretary/Profile.tsx
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { 
@@ -20,7 +21,15 @@ import {
   Star,
   Users,
   FileText,
-  TrendingUp
+  TrendingUp,
+  Settings,
+  ShieldCheck,
+  CreditCard,
+  Activity,
+  BarChart3,
+  Target,
+  Download,
+  Upload
 } from "lucide-react"
 import { toast } from "sonner"
 import { motion } from "framer-motion"
@@ -36,16 +45,17 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Progress } from "@/components/ui/progress"
 
 // Mock secretary profile data
 const mockProfileData = {
   personal: {
-    name: "Linda Rodriguez",
-    email: "linda.rodriguez@cbgschool.edu",
+    name: "Emily Davis",
+    email: "emily.davis@cbgschool.edu",
     phone: "+1 (555) 987-6543",
     address: "456 Administration Blvd, San Francisco, CA 94107",
     birthday: "March 22, 1988",
-    position: "Head Secretary",
+    position: "Senior Secretary",
     department: "School Administration",
     employeeId: "EMP-SEC-024",
     hireDate: "2018-06-15",
@@ -67,18 +77,20 @@ const mockProfileData = {
     accuracyRate: "99.2%",
     responseTime: "2.1 hours",
     studentInteractions: 345,
-    parentCommunications: 278
+    parentCommunications: 278,
+    satisfactionScore: 98,
+    efficiency: 92
   },
   activity: [
-    { action: "Processed enrollment forms", count: "15 forms", time: "Today, 10:30 AM" },
-    { action: "Updated attendance records", count: "125 students", time: "Today, 9:15 AM" },
-    { action: "Generated financial report", type: "Monthly", time: "Yesterday, 3:45 PM" },
-    { action: "Coordinated parent meetings", count: "8 meetings", time: "Yesterday, 11:30 AM" },
-    { action: "Trained new staff member", name: "Assistant Secretary", time: "2 days ago" }
+    { action: "Processed enrollment forms", count: "15 forms", time: "Today, 10:30 AM", icon: FileText },
+    { action: "Updated attendance records", count: "125 students", time: "Today, 9:15 AM", icon: Users },
+    { action: "Generated financial report", type: "Monthly", time: "Yesterday, 3:45 PM", icon: BarChart3 },
+    { action: "Coordinated parent meetings", count: "8 meetings", time: "Yesterday, 11:30 AM", icon: Calendar },
+    { action: "Trained new staff member", name: "Assistant Secretary", time: "2 days ago", icon: ShieldCheck }
   ]
 }
 
-const SecretaryProfile = () => {
+const Profile = () => {
   const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
   const [profile, setProfile] = useState(mockProfileData)
@@ -108,56 +120,77 @@ const SecretaryProfile = () => {
     return `${years} years, ${months} months`
   }
 
+  const getPerformanceColor = (value: number) => {
+    if (value >= 90) return "text-green-600 bg-green-50 border-green-200"
+    if (value >= 80) return "text-amber-600 bg-amber-50 border-amber-200"
+    return "text-red-600 bg-red-50 border-red-200"
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-              <p className="text-gray-600">Manage your secretary profile and preferences</p>
-            </div>
-            <div className="flex items-center gap-3">
-              {isEditing ? (
-                <>
-                  <Button variant="outline" onClick={handleCancel}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={() => setIsEditing(true)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit Profile
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+              My Profile
+            </h1>
+            <p className="text-gray-600 mt-2">Manage your secretary profile and preferences</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {isEditing ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={handleCancel}
+                  className="border-amber-200 hover:bg-amber-50"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
                 </Button>
-              )}
-            </div>
+                <Button 
+                  onClick={handleSave}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={() => setIsEditing(true)}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Profile Card */}
-          <div className="lg:col-span-1">
-            <Card className="border-gray-200 shadow-lg">
-              <CardContent className="p-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Profile Card */}
+        <div className="lg:col-span-1 space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="border border-amber-100 bg-gradient-to-b from-white to-amber-50/50 shadow-lg">
+              <CardContent className="p-6">
                 <div className="text-center">
                   <div className="relative inline-block mb-6">
-                    <Avatar className="h-32 w-32 mx-auto border-4 border-white shadow-lg">
-                      <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-3xl">
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full blur-lg opacity-30"></div>
+                    <Avatar className="h-32 w-32 mx-auto border-4 border-white shadow-lg relative z-10">
+                      <AvatarFallback className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-3xl">
                         {profile.personal.name.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                     {isEditing && (
                       <Button
                         size="icon"
-                        className="absolute bottom-2 right-2 h-10 w-10 rounded-full"
+                        className="absolute bottom-2 right-2 h-10 w-10 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 z-20"
                         onClick={handleProfilePicture}
                       >
                         <Camera className="h-5 w-5" />
@@ -166,8 +199,8 @@ const SecretaryProfile = () => {
                   </div>
                   
                   <h2 className="text-2xl font-bold text-gray-900">{profile.personal.name}</h2>
-                  <p className="text-gray-600 mb-2">{profile.personal.position}</p>
-                  <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 mb-4">
+                  <p className="text-amber-600 font-medium mb-2">{profile.personal.position}</p>
+                  <Badge className="bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border-amber-200 hover:from-amber-200 hover:to-orange-200">
                     <Shield className="h-3 w-3 mr-2" />
                     {profile.personal.department}
                   </Badge>
@@ -175,25 +208,25 @@ const SecretaryProfile = () => {
                   <Separator className="my-6" />
 
                   <div className="space-y-4 text-left">
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-amber-50/50 transition-colors">
+                      <Mail className="h-4 w-4 text-amber-500" />
                       <span className="text-gray-700">{profile.personal.email}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-amber-50/50 transition-colors">
+                      <Phone className="h-4 w-4 text-amber-500" />
                       <span className="text-gray-700">{profile.personal.phone}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <MapPin className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-amber-50/50 transition-colors">
+                      <MapPin className="h-4 w-4 text-amber-500" />
                       <span className="text-gray-700">{profile.personal.address}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Briefcase className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-700">Employee ID: {profile.personal.employeeId}</span>
+                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-amber-50/50 transition-colors">
+                      <Briefcase className="h-4 w-4 text-amber-500" />
+                      <span className="text-gray-700">ID: {profile.personal.employeeId}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-700">Experience: {calculateExperience()}</span>
+                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-amber-50/50 transition-colors">
+                      <Calendar className="h-4 w-4 text-amber-500" />
+                      <span className="text-gray-700">{calculateExperience()} experience</span>
                     </div>
                   </div>
 
@@ -203,10 +236,10 @@ const SecretaryProfile = () => {
                     <h4 className="font-semibold text-gray-900 mb-2">Performance Rating</h4>
                     <div className="flex justify-center gap-1 mb-3">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <Star key={star} className="h-5 w-5 text-yellow-400 fill-current" />
+                        <Star key={star} className="h-5 w-5 text-amber-400 fill-current" />
                       ))}
                     </div>
-                    <Badge className="mt-2 bg-green-100 text-green-700">
+                    <Badge className="mt-2 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border-green-200">
                       <Award className="h-3 w-3 mr-1" />
                       Top Performer
                     </Badge>
@@ -214,72 +247,106 @@ const SecretaryProfile = () => {
                 </div>
               </CardContent>
             </Card>
+          </motion.div>
 
-            {/* Performance Stats */}
-            <Card className="mt-8 border-gray-200 shadow-lg">
+          {/* Performance Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <Card className="border border-amber-100 bg-gradient-to-b from-white to-amber-50/50 shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-gray-900">
+                  <Activity className="h-5 w-5 text-amber-500" />
                   Performance Stats
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Tasks Completed</span>
-                    <span className="font-bold text-gray-900">{profile.performance.tasksCompleted}</span>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                    <div className="text-2xl font-bold text-gray-900">{profile.performance.tasksCompleted}</div>
+                    <p className="text-sm text-gray-600">Tasks</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Forms Processed</span>
-                    <span className="font-bold text-gray-900">{profile.performance.formsProcessed}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Accuracy Rate</span>
-                    <Badge className="bg-green-100 text-green-700">{profile.performance.accuracyRate}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Avg. Response Time</span>
-                    <span className="font-bold text-gray-900">{profile.performance.responseTime}</span>
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                    <div className="text-2xl font-bold text-gray-900">{profile.performance.formsProcessed}</div>
+                    <p className="text-sm text-gray-600">Forms</p>
                   </div>
                 </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Accuracy Rate</span>
+                      <span className="font-bold text-green-600">{profile.performance.accuracyRate}</span>
+                    </div>
+                    <Progress value={99.2} className="h-2" />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Efficiency</span>
+                      <span className="font-bold text-amber-600">{profile.performance.efficiency}%</span>
+                    </div>
+                    <Progress value={92} className="h-2" />
+                  </div>
+                </div>
+
                 <Separator className="my-4" />
+                
                 <div className="text-center">
                   <Button 
                     variant="outline" 
-                    className="w-full"
-                    onClick={() => navigate('/secretary')}
+                    className="w-full border-amber-200 hover:bg-amber-50"
+                    onClick={() => navigate('/secretary/reports')}
                   >
-                    <FileText className="h-4 w-4 mr-2" />
-                    View Dashboard
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    View Reports
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
+        </div>
 
-          {/* Right Column - Tabs */}
-          <div className="lg:col-span-2">
+        {/* Right Column - Tabs */}
+        <div className="lg:col-span-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+          >
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="personal" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Personal
-                </TabsTrigger>
-                <TabsTrigger value="notifications" className="flex items-center gap-2">
-                  <Bell className="h-4 w-4" />
-                  Notifications
-                </TabsTrigger>
-                <TabsTrigger value="activity" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Activity
-                </TabsTrigger>
-              </TabsList>
+              <div className="bg-gradient-to-r from-white to-amber-50/50 rounded-xl p-1 border border-amber-100">
+                <TabsList className="grid w-full grid-cols-3 bg-transparent">
+                  <TabsTrigger 
+                    value="personal" 
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white"
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Personal
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="notifications" 
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white"
+                  >
+                    <Bell className="h-4 w-4 mr-2" />
+                    Notifications
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="activity" 
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white"
+                  >
+                    <Activity className="h-4 w-4 mr-2" />
+                    Activity
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               {/* Personal Information Tab */}
               <TabsContent value="personal" className="space-y-6 mt-6">
-                <Card className="border-gray-200">
+                <Card className="border border-amber-100 bg-gradient-to-b from-white to-amber-50/50 shadow-lg">
                   <CardHeader>
-                    <CardTitle>Professional Information</CardTitle>
+                    <CardTitle className="text-gray-900">Professional Information</CardTitle>
                     <CardDescription>
                       Update your professional details and contact information
                     </CardDescription>
@@ -292,6 +359,7 @@ const SecretaryProfile = () => {
                           id="name" 
                           value={profile.personal.name}
                           disabled={!isEditing}
+                          className="border-amber-200 focus:border-amber-500"
                           onChange={(e) => setProfile({
                             ...profile,
                             personal: { ...profile.personal, name: e.target.value }
@@ -305,6 +373,7 @@ const SecretaryProfile = () => {
                           type="email"
                           value={profile.personal.email}
                           disabled={!isEditing}
+                          className="border-amber-200 focus:border-amber-500"
                           onChange={(e) => setProfile({
                             ...profile,
                             personal: { ...profile.personal, email: e.target.value }
@@ -317,6 +386,7 @@ const SecretaryProfile = () => {
                           id="phone" 
                           value={profile.personal.phone}
                           disabled={!isEditing}
+                          className="border-amber-200 focus:border-amber-500"
                           onChange={(e) => setProfile({
                             ...profile,
                             personal: { ...profile.personal, phone: e.target.value }
@@ -329,6 +399,7 @@ const SecretaryProfile = () => {
                           id="position" 
                           value={profile.personal.position}
                           disabled={!isEditing}
+                          className="border-amber-200 focus:border-amber-500"
                           onChange={(e) => setProfile({
                             ...profile,
                             personal: { ...profile.personal, position: e.target.value }
@@ -344,6 +415,7 @@ const SecretaryProfile = () => {
                           id="employeeId" 
                           value={profile.personal.employeeId}
                           disabled={true}
+                          className="border-amber-200 bg-amber-50"
                         />
                       </div>
                       <div className="space-y-2">
@@ -353,6 +425,7 @@ const SecretaryProfile = () => {
                           type="date"
                           value={profile.personal.hireDate}
                           disabled={!isEditing}
+                          className="border-amber-200 focus:border-amber-500"
                           onChange={(e) => setProfile({
                             ...profile,
                             personal: { ...profile.personal, hireDate: e.target.value }
@@ -367,6 +440,7 @@ const SecretaryProfile = () => {
                         id="address" 
                         value={profile.personal.address}
                         disabled={!isEditing}
+                        className="border-amber-200 focus:border-amber-500"
                         onChange={(e) => setProfile({
                           ...profile,
                           personal: { ...profile.personal, address: e.target.value }
@@ -380,6 +454,7 @@ const SecretaryProfile = () => {
                         id="department" 
                         value={profile.personal.department}
                         disabled={!isEditing}
+                        className="border-amber-200 focus:border-amber-500"
                         onChange={(e) => setProfile({
                           ...profile,
                           personal: { ...profile.personal, department: e.target.value }
@@ -394,6 +469,7 @@ const SecretaryProfile = () => {
                         rows={4}
                         value={profile.personal.bio}
                         disabled={!isEditing}
+                        className="border-amber-200 focus:border-amber-500 resize-none"
                         onChange={(e) => setProfile({
                           ...profile,
                           personal: { ...profile.personal, bio: e.target.value }
@@ -402,10 +478,10 @@ const SecretaryProfile = () => {
                     </div>
 
                     {isEditing && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
                         <div className="flex items-center gap-3">
-                          <CheckCircle className="h-5 w-5 text-blue-500" />
-                          <p className="text-sm text-blue-700">
+                          <CheckCircle className="h-5 w-5 text-amber-500" />
+                          <p className="text-sm text-amber-700">
                             Changes will be reviewed by school administration
                           </p>
                         </div>
@@ -417,21 +493,28 @@ const SecretaryProfile = () => {
 
               {/* Notifications Tab */}
               <TabsContent value="notifications" className="space-y-6 mt-6">
-                <Card className="border-gray-200">
+                <Card className="border border-amber-100 bg-gradient-to-b from-white to-amber-50/50 shadow-lg">
                   <CardHeader>
-                    <CardTitle>Notification Preferences</CardTitle>
+                    <CardTitle className="text-gray-900">Notification Preferences</CardTitle>
                     <CardDescription>
                       Choose how you want to receive administrative alerts
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-4">Notification Channels</h4>
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Bell className="h-5 w-5 text-amber-500" />
+                        Notification Channels
+                      </h4>
                       <div className="space-y-4">
                         {Object.entries(profile.notifications).map(([key, value]) => (
-                          <div key={key} className="flex items-center justify-between">
+                          <motion.div
+                            key={key}
+                            whileHover={{ scale: 1.02 }}
+                            className="flex items-center justify-between p-3 rounded-xl hover:bg-amber-50/50 transition-colors"
+                          >
                             <div>
-                              <Label htmlFor={key} className="capitalize font-medium">
+                              <Label htmlFor={key} className="capitalize font-medium text-gray-900">
                                 {key === 'sms' ? 'SMS Text Messages' : 
                                  key === 'push' ? 'Push Notifications' :
                                  key === 'studentAlerts' ? 'Student Alert Notifications' :
@@ -456,6 +539,7 @@ const SecretaryProfile = () => {
                               id={key}
                               checked={value}
                               disabled={!isEditing}
+                              className="data-[state=checked]:bg-amber-500"
                               onCheckedChange={(checked) => setProfile({
                                 ...profile,
                                 notifications: {
@@ -464,7 +548,7 @@ const SecretaryProfile = () => {
                                 }
                               })}
                             />
-                          </div>
+                          </motion.div>
                         ))}
                       </div>
                     </div>
@@ -472,12 +556,15 @@ const SecretaryProfile = () => {
                     <Separator />
 
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-4">Alert Schedule</h4>
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-amber-500" />
+                        Alert Schedule
+                      </h4>
                       <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="alert-time">Daily Alert Time</Label>
                           <Select defaultValue="9am">
-                            <SelectTrigger>
+                            <SelectTrigger className="border-amber-200">
                               <SelectValue placeholder="Select time" />
                             </SelectTrigger>
                             <SelectContent>
@@ -491,7 +578,7 @@ const SecretaryProfile = () => {
                         <div className="space-y-2">
                           <Label htmlFor="summary-frequency">Summary Frequency</Label>
                           <Select defaultValue="daily">
-                            <SelectTrigger>
+                            <SelectTrigger className="border-amber-200">
                               <SelectValue placeholder="Select frequency" />
                             </SelectTrigger>
                             <SelectContent>
@@ -509,25 +596,25 @@ const SecretaryProfile = () => {
 
               {/* Activity Tab */}
               <TabsContent value="activity" className="space-y-6 mt-6">
-                <Card className="border-gray-200">
+                <Card className="border border-amber-100 bg-gradient-to-b from-white to-amber-50/50 shadow-lg">
                   <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
+                    <CardTitle className="text-gray-900">Recent Activity</CardTitle>
                     <CardDescription>
                       Your recent administrative actions and interactions
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       {profile.activity.map((item, index) => (
                         <motion.div
                           key={index}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="flex items-start gap-4 p-4 rounded-lg border border-gray-200"
+                          className="flex items-start gap-4 p-4 rounded-xl border border-amber-100 bg-white hover:shadow-md transition-shadow"
                         >
-                          <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
-                            <FileText className="h-4 w-4" />
+                          <div className="p-2 rounded-lg bg-gradient-to-r from-amber-100 to-orange-100 text-amber-600">
+                            <item.icon className="h-4 w-4" />
                           </div>
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900">{item.action}</h4>
@@ -540,9 +627,14 @@ const SecretaryProfile = () => {
                             {item.name && (
                               <p className="text-sm text-gray-600">With: {item.name}</p>
                             )}
-                            <p className="text-xs text-gray-500 mt-2">{item.time}</p>
+                            <p className="text-xs text-gray-500 mt-2 flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {item.time}
+                            </p>
                           </div>
-                          <Badge variant="outline">Completed</Badge>
+                          <Badge className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border-green-200">
+                            Completed
+                          </Badge>
                         </motion.div>
                       ))}
                     </div>
@@ -550,37 +642,49 @@ const SecretaryProfile = () => {
                 </Card>
 
                 {/* Interaction Stats */}
-                <Card className="border-gray-200">
+                <Card className="border border-amber-100 bg-gradient-to-b from-white to-amber-50/50 shadow-lg">
                   <CardHeader>
-                    <CardTitle>Interaction Statistics</CardTitle>
+                    <CardTitle className="text-gray-900">Interaction Statistics</CardTitle>
+                    <CardDescription>
+                      Monthly performance metrics
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid md:grid-cols-3 gap-6">
-                      <div className="text-center p-4 rounded-xl bg-blue-50">
-                        <div className="text-2xl font-bold text-blue-600">{profile.performance.studentInteractions}</div>
-                        <p className="text-gray-600">Student Interactions</p>
-                        <p className="text-sm text-gray-500">This month</p>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                        <div className="text-2xl font-bold text-gray-900">{profile.performance.studentInteractions}</div>
+                        <p className="text-sm text-gray-600">Student Interactions</p>
+                        <Badge className="mt-2 bg-green-100 text-green-700">+12%</Badge>
                       </div>
-                      <div className="text-center p-4 rounded-xl bg-green-50">
-                        <div className="text-2xl font-bold text-green-600">{profile.performance.parentCommunications}</div>
-                        <p className="text-gray-600">Parent Communications</p>
-                        <p className="text-sm text-gray-500">This month</p>
+                      <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                        <div className="text-2xl font-bold text-gray-900">{profile.performance.parentCommunications}</div>
+                        <p className="text-sm text-gray-600">Parent Communications</p>
+                        <Badge className="mt-2 bg-green-100 text-green-700">+8%</Badge>
                       </div>
-                      <div className="text-center p-4 rounded-xl bg-purple-50">
-                        <div className="text-2xl font-bold text-purple-600">98%</div>
-                        <p className="text-gray-600">Satisfaction Rate</p>
-                        <p className="text-sm text-gray-500">Based on feedback</p>
+                      <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                        <div className="text-2xl font-bold text-gray-900">{profile.performance.satisfactionScore}%</div>
+                        <p className="text-sm text-gray-600">Satisfaction Rate</p>
+                        <div className="flex justify-center mt-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star key={star} className="h-3 w-3 text-amber-400 fill-current" />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-center p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                        <div className="text-2xl font-bold text-gray-900">{profile.performance.efficiency}%</div>
+                        <p className="text-sm text-gray-600">Efficiency</p>
+                        <Badge className="mt-2 bg-green-100 text-green-700">+5%</Badge>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
   )
 }
 
-export default SecretaryProfile
+export default Profile

@@ -35,39 +35,9 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { api } from "@/lib/api"
+import apiService from "@/services/api"
 
-// Mock admin dashboard data
-const mockAdminData = {
-  user: {
-    name: "School Admin",
-    role: "System Administrator",
-    avatar: "SA",
-    lastLogin: "Today, 9:15 AM"
-  },
-  stats: {
-    totalStudents: 1250,
-    totalTeachers: 85,
-    totalParents: 980,
-    activeUsers: 124,
-    revenue: "$125,430",
-    attendanceRate: "94.8%"
-  },
-  systemStatus: {
-    database: "Healthy",
-    server: "Online",
-    security: "Protected",
-    backup: "Completed",
-    uptime: "99.9%",
-    load: "42%"
-  },
-  recentActivities: [
-    { action: "New student enrolled", user: "Alex Chen", time: "10 min ago", status: "success" },
-    { action: "System backup completed", user: "System", time: "2 hours ago", status: "success" },
-    { action: "Teacher account created", user: "Mr. Wilson", time: "3 hours ago", status: "success" },
-    { action: "Security audit started", user: "System", time: "5 hours ago", status: "warning" },
-    { action: "Fee payment failed", user: "Parent ID: 234", time: "6 hours ago", status: "error" }
-  ]
-}
+// Dashboard will load from API
 
   const AdminDashboard = () => {
   const navigate = useNavigate()
@@ -80,9 +50,10 @@ const mockAdminData = {
       try {
         const userResponse = await api.get("/auth/me")
         const { user } = userResponse.data
+        
+        // Fetch dashboard data from API
+        const dashResponse = await apiService.getDashboardData('admin')
 
-        // For now, use mock data for dashboard stats since we don't have admin-specific endpoints yet
-        // In a real implementation, you would create admin-specific endpoints
         setAdminData({
           user: {
             name: user.name,
@@ -90,29 +61,7 @@ const mockAdminData = {
             avatar: user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase(),
             lastLogin: "Today, 9:15 AM"
           },
-          stats: {
-            totalStudents: 1250,
-            totalTeachers: 85,
-            totalParents: 980,
-            activeUsers: 124,
-            revenue: "$125,430",
-            attendanceRate: "94.8%"
-          },
-          systemStatus: {
-            database: "Healthy",
-            server: "Online",
-            security: "Protected",
-            backup: "Completed",
-            uptime: "99.9%",
-            load: "42%"
-          },
-          recentActivities: [
-            { action: "New student enrolled", user: "Alex Chen", time: "10 min ago", status: "success" },
-            { action: "System backup completed", user: "System", time: "2 hours ago", status: "success" },
-            { action: "Teacher account created", user: "Mr. Wilson", time: "3 hours ago", status: "success" },
-            { action: "Security audit started", user: "System", time: "5 hours ago", status: "warning" },
-            { action: "Fee payment failed", user: "Parent ID: 234", time: "6 hours ago", status: "error" }
-          ],
+          ...dashResponse,
           quickStats: [
             { label: "New Students", value: "15", change: "+12%", icon: UserPlus, color: "bg-blue-500" },
             { label: "Revenue Today", value: "$2,850", change: "+8%", icon: DollarSign, color: "bg-green-500" },

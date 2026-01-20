@@ -13,21 +13,28 @@ import ParentProfile from './pages/Parents/Profile'
 import ParentReport from './pages/Parents/Report'
 import ParentSettings from './pages/Parents/Settings'
 
-// Secretary pages
-import SecretaryDashboard from './pages/secretary/SecretaryDashboard'
-import Records from './pages/secretary/Records'
-import Finance from './pages/secretary/Finance'
-import Attendance from './pages/secretary/Attendance'
-import SecretaryProfile from './pages/secretary/SecretaryProfile'
-import SecretarySettings from './pages/secretary/SecretarySettings'
-
+import SecretaryLayout from '@/components/layout/SecretaryLayout';
+import SecretaryDashboard from './pages/secretary/Dashboard';
+import Records from './pages/secretary/Records';
+import Finance from './pages/secretary/Finance';
+import Attendance from './pages/secretary/Attendance';
+import Documents from './pages/secretary/Documents';
+import Reports from './pages/secretary/Reports';
+import SecretaryProfile from './pages/secretary/Profile';
+import SecretarySettings from './pages/secretary/Settings';
 // Admin pages
+import AdminLayout from '@/components/layout/AdminLayout'
 import AdminAuth from './pages/admin/AdminAuth'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import UserManagement from './pages/admin/UserManagement'
-import SystemSettings from './pages/admin/SystemSettings'
-import Analytics from './pages/admin/Analytics'
-import AdminProfile from './pages/admin/AdminProfile'
+import AdminDashboard from './pages/admin/Dashboard'
+import AdminProfile from './pages/admin/Profile'
+import AdminUsers from './pages/admin/Users'
+import AdminStudents from './pages/admin/Students'
+import AdminAcademicYears from './pages/admin/AcademicYears'
+import AdminTerms from './pages/admin/Terms'
+import AdminLessons from './pages/admin/Lessons'
+import AdminGrades from './pages/admin/Grades'
+import AdminAnalytics from './pages/admin/Analytics'
+import AdminSystemSettings from './pages/admin/SystemSettings'
 
 // Metron pages
 import MetronLayout from '@/components/layout/MetronLayout'
@@ -36,7 +43,7 @@ import GirlsManage from './pages/metron/GirlsManage'
 import DormitoryAssignment from './pages/metron/DormitoryAssignment'
 import Analysis from './pages/metron/Analysis'
 import Report from './pages/metron/Report'
-import Profile from './pages/metron/Profile'
+import MetronProfile from './pages/metron/Profile'
 
 // Add these imports to your App.tsx
 import PatronLayout from '@/components/layout/PatronLayout'
@@ -54,10 +61,14 @@ import Classes from './pages/teacher/Classes'
 import Schedule from './pages/teacher/Schedule'
 import Assignments from './pages/teacher/Assignments'
 import TAttendance from './pages/teacher/Attendance'
-import Grades from './pages/teacher/Grades'
+import TeacherGrades from './pages/teacher/Grades'
 import TeacherProfile from './pages/teacher/Profile'
 
 import Notifications from './pages/Notifications'
+
+
+
+
 
 // Import NotificationProvider
 import { NotificationProvider } from '@/contexts/NotificationContext'
@@ -75,31 +86,26 @@ function App() {
           <Route path='/admin/auth' element={<AdminAuth />} />
           
           {/* Admin Dashboard Routes */}
+          <Route path='/admin/auth' element={<AdminAuth />} />
           <Route path='/admin' element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminDashboard />
+              <AdminLayout>
+                <Outlet />
+              </AdminLayout>
             </ProtectedRoute>
-          } />
-          <Route path='/admin/users' element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <UserManagement />
-            </ProtectedRoute>
-          } />
-          <Route path='/admin/settings' element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <SystemSettings />
-            </ProtectedRoute>
-          } />
-          <Route path='/admin/profile' element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminProfile />  
-            </ProtectedRoute>
-          } />
-          <Route path='/admin/analytics' element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Analytics />
-            </ProtectedRoute>
-          } />
+          }>
+            <Route index element={<AdminDashboard />} />
+            <Route path='dashboard' element={<AdminDashboard />} />
+            <Route path='profile' element={<AdminProfile />} />
+            <Route path='users' element={<AdminUsers />} />
+            <Route path='students' element={<AdminStudents />} />
+            <Route path='academic-years' element={<AdminAcademicYears />} />
+            <Route path='terms' element={<AdminTerms />} />
+            <Route path='lessons' element={<AdminLessons />} />
+            <Route path='grades' element={<AdminGrades />} />
+            <Route path='analytics' element={<AdminAnalytics />} />
+            <Route path='settings' element={<AdminSystemSettings />} />
+          </Route>
           
            <Route path='/notifications' element={
               <ProtectedRoute allowedRoles={['teacher', 'metron', 'patron', 'admin']}>
@@ -121,7 +127,7 @@ function App() {
   <Route path='schedule' element={<Schedule />} />
   <Route path='assignments' element={<Assignments />} />
   <Route path='attendance' element={<TAttendance />} />
-  <Route path='grades' element={<Grades />} />
+  <Route path='grades' element={<TeacherGrades />} />
   <Route path='profile' element={<TeacherProfile />} />
 </Route>
           
@@ -148,37 +154,23 @@ function App() {
           } />
           
           {/* Secretary Dashboard Routes */}
-          <Route path='/secretary' element={
-            <ProtectedRoute allowedRoles={['secretary']}>
-              <SecretaryDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path='/secretary/records' element={
-            <ProtectedRoute allowedRoles={['secretary']}>
-              <Records />
-            </ProtectedRoute>
-          } />
-          <Route path='/secretary/finance' element={
-            <ProtectedRoute allowedRoles={['secretary']}>
-              <Finance />
-            </ProtectedRoute>
-          } />
-          <Route path='/secretary/attendance' element={
-            <ProtectedRoute allowedRoles={['secretary']}>
-              <Attendance />
-            </ProtectedRoute>
-          } />
-          <Route path='/secretary/profile' element={
-            <ProtectedRoute allowedRoles={['secretary']}>
-              <SecretaryProfile />
-            </ProtectedRoute>
-          } />
-          <Route path='/secretary/settings' element={
-            <ProtectedRoute allowedRoles={['secretary']}>
-              <SecretarySettings />
-            </ProtectedRoute>
-          } />
-          
+<Route path='/secretary' element={
+  <ProtectedRoute allowedRoles={['secretary']}>
+    <SecretaryLayout >
+      <Outlet />
+    </SecretaryLayout >
+  </ProtectedRoute>
+}>
+  <Route index element={<SecretaryDashboard />} />
+  <Route path='dashboard' element={<SecretaryDashboard />} />
+  <Route path='records' element={<Records />} />
+  <Route path='finance' element={<Finance />} />
+  <Route path='attendance' element={<Attendance />} />
+  <Route path='documents' element={<Documents />} />
+  <Route path='reports' element={<Reports />} />
+  <Route path='profile' element={<SecretaryProfile />} />
+  <Route path='settings' element={<SecretarySettings />} />
+</Route>
           {/* Metron Dashboard Routes */}
           <Route path='/metron' element={
             <ProtectedRoute allowedRoles={['metron']}>
@@ -193,7 +185,7 @@ function App() {
             <Route path='dormitory' element={<DormitoryAssignment />} />
             <Route path='analysis' element={<Analysis />} />
             <Route path='reports' element={<Report />} />
-            <Route path='profile' element={<Profile />} />
+            <Route path='profile' element={<MetronProfile />} />
           </Route>
           
           {/* Patron Dashboard Routes */}

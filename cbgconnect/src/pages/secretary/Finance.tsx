@@ -1,657 +1,696 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from 'react';
 import { 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown,
-  CheckCircle,
-  XCircle,
-  Clock,
+  Search, 
+  Filter, 
+  Plus, 
   Download,
-  Printer,
-  Filter,
-  Search,
-  Calendar,
-  Mail,
-  Bell,
-  FileText,
   CreditCard,
-  RefreshCw,
-  BarChart3,
-  PieChart,
+  TrendingUp,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  DollarSign,
+  Calendar,
   Users,
-  ArrowRight
-} from "lucide-react"
-import { toast } from "sonner"
+  Eye,
+  Receipt,
+  Loader,
+  MoreVertical
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { apiCall } from '@/lib/api';
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle  , CardFooter} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
-import { Separator } from "@/components/ui/separator"
-
-// Mock finance data
-const mockFinanceData = {
-  summary: {
-    totalRevenue: "$125,430",
-    collectedThisMonth: "$28,500",
-    pendingPayments: "$12,750",
-    overdueAmount: "$5,230",
-    collectionRate: "92%",
-    avgPaymentTime: "3.2 days"
-  },
-  feeStructure: [
-    { grade: "Grade 5", term1: "$1,200", term2: "$1,200", term3: "$1,200", total: "$3,600" },
-    { grade: "Grade 6", term1: "$1,300", term2: "$1,300", term3: "$1,300", total: "$3,900" },
-    { grade: "Grade 7", term1: "$1,400", term2: "$1,400", term3: "$1,400", total: "$4,200" },
-    { grade: "Grade 8", term1: "$1,500", term2: "$1,500", term3: "$1,500", total: "$4,500" }
-  ],
-  recentTransactions: [
-    { id: 1, student: "Alex Chen", amount: "$1,200", date: "2024-10-20", method: "Credit Card", status: "completed", invoice: "INV-2024-001" },
-    { id: 2, student: "Emma Rodriguez", amount: "$1,300", date: "2024-10-19", method: "Bank Transfer", status: "completed", invoice: "INV-2024-002" },
-    { id: 3, student: "James Wilson", amount: "$1,400", date: "2024-10-18", method: "Cash", status: "pending", invoice: "INV-2024-003" },
-    { id: 4, student: "Sophia Kim", amount: "$1,200", date: "2024-10-17", method: "Credit Card", status: "completed", invoice: "INV-2024-004" },
-    { id: 5, student: "Michael Brown", amount: "$1,500", date: "2024-10-16", method: "Bank Transfer", status: "overdue", invoice: "INV-2024-005" },
-    { id: 6, student: "Olivia Davis", amount: "$1,300", date: "2024-10-15", method: "Credit Card", status: "completed", invoice: "INV-2024-006" }
-  ],
-  pendingPayments: [
-    { student: "William Garcia", grade: "Grade 7", amount: "$1,400", dueDate: "2024-10-25", daysLeft: 5 },
-    { student: "Ava Martinez", grade: "Grade 5", amount: "$1,200", dueDate: "2024-10-28", daysLeft: 8 },
-    { student: "Noah Taylor", grade: "Grade 8", amount: "$1,500", dueDate: "2024-10-30", daysLeft: 10 },
-    { student: "Isabella Lee", grade: "Grade 6", amount: "$1,300", dueDate: "2024-11-05", daysLeft: 16 }
-  ],
-  monthlyCollection: [
-    { month: "Jan", amount: 24500 },
-    { month: "Feb", amount: 28500 },
-    { month: "Mar", amount: 31200 },
-    { month: "Apr", amount: 29800 },
-    { month: "May", amount: 32500 },
-    { month: "Jun", amount: 28900 },
-    { month: "Jul", amount: 26500 },
-    { month: "Aug", amount: 30100 },
-    { month: "Sep", amount: 31800 },
-    { month: "Oct", amount: 28500 }
-  ]
+interface Fee {
+  id: number;
+  student_id: number;
+  student_name: string;
+  fee_type: string;
+  amount: number;
+  due_date: string;
+  paid_date?: string;
+  status: 'pending' | 'paid' | 'overdue' | 'partial';
 }
 
-const Finance = () => {
-  const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState("overview")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+interface FeeSummary {
+  total_collected: number;
+  total_pending: number;
+  total_overdue: number;
+  total_partial: number;
+  students_paid: number;
+  students_pending: number;
+  students_overdue: number;
+}
 
-  const handleRecordPayment = () => {
-    navigate('/secretary/finance/record-payment')
-    toast.info("Recording new payment...")
-  }
+export default function Finance() {
+  const [fees, setFees] = useState<Fee[]>([]);
+  const [summary, setSummary] = useState<FeeSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [isAddFeeOpen, setIsAddFeeOpen] = useState(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [selectedFee, setSelectedFee] = useState<Fee | null>(null);
 
-  const handleGenerateInvoice = () => {
-    toast.success("Invoice generated successfully!")
-  }
+  useEffect(() => {
+    fetchFees();
+  }, [selectedStatus]);
 
-  const handleSendReminders = () => {
-    toast.info("Sending payment reminders...")
-  }
+  const fetchFees = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (selectedStatus !== 'all') params.append('status', selectedStatus);
 
-  const handleExportReport = () => {
-    toast.success("Exporting finance report...")
-  }
+      const [feesData, summaryData] = await Promise.all([
+        apiCall.get(`/api/fees?${params}`),
+        apiCall.get('/api/fees/summary')
+      ]);
+
+      setFees(feesData);
+      setSummary(summaryData);
+    } catch (error) {
+      toast.error('Failed to fetch fees');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddFee = async (formData: any) => {
+    try {
+      const response = await apiCall.post('/api/fees', formData);
+      setFees([...fees, response]);
+      setIsAddFeeOpen(false);
+      fetchFees();
+      toast.success('Fee added successfully');
+    } catch (error) {
+      toast.error('Failed to add fee');
+      console.error(error);
+    }
+  };
+
+  const handleRecordPayment = async (feeId: number, amount: number) => {
+    try {
+      const response = await apiCall.post(`/api/fees/${feeId}/payment`, {
+        amount,
+        paid_date: new Date().toISOString().split('T')[0]
+      });
+      
+      setFees(fees.map(f => f.id === feeId ? response : f));
+      setIsPaymentOpen(false);
+      setSelectedFee(null);
+      fetchFees();
+      toast.success('Payment recorded successfully');
+    } catch (error) {
+      toast.error('Failed to record payment');
+      console.error(error);
+    }
+  };
+
+  const handleExportFees = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (selectedStatus !== 'all') params.append('status', selectedStatus);
+
+      const response = await fetch(`http://localhost:4000/api/fees/export/csv?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fees_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      
+      toast.success('Fees exported successfully');
+    } catch (error) {
+      toast.error('Failed to export fees');
+      console.error(error);
+    }
+  };
+
+  const filteredFees = fees.filter(fee => {
+    const matchesSearch = fee.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         fee.fee_type.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "completed": return "bg-green-100 text-green-700"
-      case "pending": return "bg-yellow-100 text-yellow-700"
-      case "overdue": return "bg-red-100 text-red-700"
-      default: return "bg-gray-100 text-gray-700"
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
+      case 'partial': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
-  }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'paid': return <CheckCircle className="h-4 w-4" />;
+      case 'pending': return <Clock className="h-4 w-4" />;
+      case 'overdue': return <AlertCircle className="h-4 w-4" />;
+      case 'partial': return <TrendingUp className="h-4 w-4" />;
+      default: return null;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Finance Management</h1>
-              <p className="text-gray-600">Manage fee collection, transactions, and financial reporting</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="outline"
-                onClick={handleExportReport}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export Report
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Financial Management</h1>
+          <p className="text-muted-foreground">Manage student fees and financial transactions</p>
+        </div>
+        <div className="flex gap-2">
+          <Dialog open={isAddFeeOpen} onOpenChange={setIsAddFeeOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add New Fee
               </Button>
-              <Button 
-                onClick={handleRecordPayment}
-              >
-                <DollarSign className="h-4 w-4 mr-2" />
-                Record Payment
+            </DialogTrigger>
+            <AddFeeDialog onClose={() => setIsAddFeeOpen(false)} onSubmit={handleAddFee} />
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="bg-gradient-to-br from-green-50 to-green-100/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Collected</p>
+                  <p className="text-2xl font-bold">${summary.total_collected?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-muted-foreground">{summary.students_paid} students</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold">${summary.total_pending?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-muted-foreground">{summary.students_pending} students</p>
+                </div>
+                <Clock className="h-8 w-8 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-red-50 to-red-100/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Overdue</p>
+                  <p className="text-2xl font-bold">${summary.total_overdue?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-muted-foreground">{summary.students_overdue} students</p>
+                </div>
+                <AlertCircle className="h-8 w-8 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Partial Payments</p>
+                  <p className="text-2xl font-bold">${summary.total_partial?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-muted-foreground">In progress</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Filters */}
+      <Card className="bg-white/50 backdrop-blur-sm">
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by student name or fee type..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-[140px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={handleExportFees}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
               </Button>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Revenue</p>
-                  <div className="text-2xl font-bold text-gray-900">{mockFinanceData.summary.totalRevenue}</div>
-                  <p className="text-xs text-gray-500 mt-1">Current academic year</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Collected This Month</p>
-                  <div className="text-2xl font-bold text-gray-900">{mockFinanceData.summary.collectedThisMonth}</div>
-                  <p className="text-xs text-gray-500 mt-1">+12% from last month</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Pending Payments</p>
-                  <div className="text-2xl font-bold text-gray-900">{mockFinanceData.summary.pendingPayments}</div>
-                  <p className="text-xs text-gray-500 mt-1">{mockFinanceData.pendingPayments.length} students</p>
-                </div>
-                <Clock className="h-8 w-8 text-amber-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-r from-red-50 to-pink-50 border-red-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Overdue Amount</p>
-                  <div className="text-2xl font-bold text-gray-900">{mockFinanceData.summary.overdueAmount}</div>
-                  <p className="text-xs text-gray-500 mt-1">Collection rate: {mockFinanceData.summary.collectionRate}</p>
-                </div>
-                <TrendingDown className="h-8 w-8 text-red-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Fees Table */}
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="all">All Fees</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({fees.filter(f => f.status === 'pending').length})</TabsTrigger>
+          <TabsTrigger value="overdue">Overdue ({fees.filter(f => f.status === 'overdue').length})</TabsTrigger>
+          <TabsTrigger value="paid">Paid ({fees.filter(f => f.status === 'paid').length})</TabsTrigger>
+        </TabsList>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Transactions
-            </TabsTrigger>
-            <TabsTrigger value="fee-structure" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Fee Structure
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center gap-2">
-              <PieChart className="h-4 w-4" />
-              Reports
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid lg:grid-cols-2 gap-8">
-              {/* Monthly Collection Chart */}
-              <Card className="border-gray-200 shadow-lg">
-                <CardHeader>
-                  <CardTitle>Monthly Collection Trend</CardTitle>
-                  <CardDescription>
-                    Fee collection over the past 10 months
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-end gap-2">
-                    {mockFinanceData.monthlyCollection.map((item, index) => (
-                      <div key={index} className="flex-1 flex flex-col items-center">
-                        <div 
-                          className="w-full bg-gradient-to-t from-blue-500 to-cyan-500 rounded-t-lg"
-                          style={{ height: `${(item.amount / 35000) * 100}%` }}
-                        />
-                        <span className="text-xs text-gray-600 mt-2">{item.month}</span>
-                        <span className="text-xs font-medium">${(item.amount / 1000).toFixed(0)}k</span>
-                      </div>
-                    ))}
-                  </div>
-                  <Separator className="my-4" />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Average monthly collection: $29,310</span>
-                    <span className="font-medium text-green-600">+8.5% growth</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Pending Payments */}
-              <Card className="border-gray-200 shadow-lg">
-                <CardHeader>
-                  <CardTitle>Pending Payments</CardTitle>
-                  <CardDescription>
-                    Upcoming fee due dates
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {mockFinanceData.pendingPayments.map((payment, index) => (
-                      <div key={index} className="p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h4 className="font-medium text-gray-900">{payment.student}</h4>
-                            <p className="text-sm text-gray-600">{payment.grade}</p>
-                          </div>
-                          <Badge className={
-                            payment.daysLeft <= 3 ? "bg-red-100 text-red-700" :
-                            payment.daysLeft <= 7 ? "bg-amber-100 text-amber-700" :
-                            "bg-blue-100 text-blue-700"
-                          }>
-                            Due in {payment.daysLeft} days
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-lg font-bold text-gray-900">{payment.amount}</span>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={handleGenerateInvoice}>
-                              <FileText className="h-3 w-3 mr-1" />
-                              Invoice
-                            </Button>
-                            <Button size="sm" onClick={() => toast.info(`Sending reminder to ${payment.student}`)}>
-                              <Bell className="h-3 w-3 mr-1" />
-                              Remind
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="outline" className="w-full mt-4" onClick={handleSendReminders}>
-                    <Bell className="h-4 w-4 mr-2" />
-                    Send All Reminders
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Collection Stats */}
-            <Card className="border-gray-200">
-              <CardContent className="p-6">
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-900 mb-2">
-                      {mockFinanceData.summary.collectionRate}
-                    </div>
-                    <p className="text-gray-600">Collection Rate</p>
-                    <Progress value={92} className="h-2 mt-2" />
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-900 mb-2">
-                      {mockFinanceData.summary.avgPaymentTime}
-                    </div>
-                    <p className="text-gray-600">Avg. Payment Time</p>
-                    <p className="text-sm text-gray-500">Days from due date</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-900 mb-2">45</div>
-                    <p className="text-gray-600">Pending Invoices</p>
-                    <Button size="sm" variant="link" onClick={handleSendReminders}>
-                      Send reminders
-                    </Button>
-                  </div>
+        <TabsContent value="all" className="space-y-4">
+          <Card className="bg-white/50 backdrop-blur-sm">
+            <CardContent className="pt-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader className="h-8 w-8 animate-spin" />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Transactions Tab */}
-          <TabsContent value="transactions">
-            <Card className="border-gray-200 shadow-lg">
-              <CardHeader>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <CardTitle>Recent Transactions</CardTitle>
-                    <CardDescription>
-                      All fee payments and financial transactions
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search transactions..."
-                        className="pl-10 w-48"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="overdue">Overdue</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
+              ) : (
+                <div className="border rounded-lg overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Invoice #</TableHead>
                         <TableHead>Student</TableHead>
+                        <TableHead>Fee Type</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Payment Method</TableHead>
+                        <TableHead>Due Date</TableHead>
+                        <TableHead>Paid Date</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockFinanceData.recentTransactions.map((transaction) => (
-                        <TableRow key={transaction.id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">{transaction.invoice}</TableCell>
-                          <TableCell>{transaction.student}</TableCell>
-                          <TableCell className="font-bold">{transaction.amount}</TableCell>
-                          <TableCell>{transaction.date}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{transaction.method}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusColor(transaction.status)}>
-                              {transaction.status === 'completed' ? (
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                              ) : transaction.status === 'pending' ? (
-                                <Clock className="h-3 w-3 mr-1" />
-                              ) : (
-                                <XCircle className="h-3 w-3 mr-1" />
-                              )}
-                              {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline">
-                                <FileText className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="outline">
-                                <Mail className="h-4 w-4" />
-                              </Button>
-                            </div>
+                      {filteredFees.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <p className="text-muted-foreground">No fees found</p>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        filteredFees.map((fee) => (
+                          <TableRow key={fee.id}>
+                            <TableCell className="font-medium">{fee.student_name}</TableCell>
+                            <TableCell>{fee.fee_type}</TableCell>
+                            <TableCell className="font-bold">${fee.amount.toFixed(2)}</TableCell>
+                            <TableCell>{fee.due_date}</TableCell>
+                            <TableCell>{fee.paid_date ? new Date(fee.paid_date).toLocaleDateString() : '-'}</TableCell>
+                            <TableCell>
+                              <Badge className={getStatusColor(fee.status)}>
+                                <span className="mr-1">{getStatusIcon(fee.status)}</span>
+                                {fee.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedFee(fee);
+                                    setIsPaymentOpen(true);
+                                  }}>
+                                    <CreditCard className="mr-2 h-4 w-4" />
+                                    Record Payment
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Receipt className="mr-2 h-4 w-4" />
+                                    View Receipt
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-red-600">
+                                    <AlertCircle className="mr-2 h-4 w-4" />
+                                    Send Reminder
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-gray-600">
-                    Showing {mockFinanceData.recentTransactions.length} transactions
-                  </p>
-                  <Button variant="outline">
-                    View All Transactions
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            {/* Payment Methods Distribution */}
-            <Card className="mt-8 border-gray-200">
-              <CardHeader>
-                <CardTitle>Payment Methods Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-4 gap-6">
-                  <div className="text-center p-4 rounded-xl bg-blue-50">
-                    <div className="text-2xl font-bold text-blue-600">58%</div>
-                    <p className="text-gray-600">Credit Card</p>
-                    <p className="text-sm text-gray-500">Most popular</p>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-green-50">
-                    <div className="text-2xl font-bold text-green-600">28%</div>
-                    <p className="text-gray-600">Bank Transfer</p>
-                    <p className="text-sm text-gray-500">Direct deposit</p>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-amber-50">
-                    <div className="text-2xl font-bold text-amber-600">12%</div>
-                    <p className="text-gray-600">Cash</p>
-                    <p className="text-sm text-gray-500">In-person payments</p>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-purple-50">
-                    <div className="text-2xl font-bold text-purple-600">2%</div>
-                    <p className="text-gray-600">Other</p>
-                    <p className="text-sm text-gray-500">Checks, etc.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Fee Structure Tab */}
-          <TabsContent value="fee-structure">
-            <Card className="border-gray-200 shadow-lg">
-              <CardHeader>
-                <CardTitle>Fee Structure</CardTitle>
-                <CardDescription>
-                  Academic year 2024-2025 fee breakdown by grade
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Grade Level</TableHead>
-                        <TableHead>Term 1</TableHead>
-                        <TableHead>Term 2</TableHead>
-                        <TableHead>Term 3</TableHead>
-                        <TableHead>Total Annual Fee</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+        <TabsContent value="pending" className="space-y-4">
+          <Card className="bg-white/50 backdrop-blur-sm">
+            <CardContent className="pt-6">
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Fee Type</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredFees.filter(f => f.status === 'pending').map((fee) => (
+                      <TableRow key={fee.id}>
+                        <TableCell className="font-medium">{fee.student_name}</TableCell>
+                        <TableCell>{fee.fee_type}</TableCell>
+                        <TableCell className="font-bold">${fee.amount.toFixed(2)}</TableCell>
+                        <TableCell>{fee.due_date}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(fee.status)}>
+                            {fee.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedFee(fee);
+                              setIsPaymentOpen(true);
+                            }}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Record Payment
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {mockFinanceData.feeStructure.map((fee, index) => (
-                        <TableRow key={index} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">{fee.grade}</TableCell>
-                          <TableCell>{fee.term1}</TableCell>
-                          <TableCell>{fee.term2}</TableCell>
-                          <TableCell>{fee.term3}</TableCell>
-                          <TableCell className="font-bold">{fee.total}</TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => toast.info(`Editing ${fee.grade} fee structure`)}>
-                              Edit
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="overdue" className="space-y-4">
+          <Card className="bg-white/50 backdrop-blur-sm border-red-200 bg-red-50/20">
+            <CardHeader>
+              <CardTitle className="text-red-700">Overdue Fees - Action Required</CardTitle>
+              <CardDescription>These fees are past the due date</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Fee Type</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Days Overdue</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredFees.filter(f => f.status === 'overdue').map((fee) => {
+                      const daysOverdue = Math.floor(
+                        (new Date().getTime() - new Date(fee.due_date).getTime()) / (1000 * 60 * 60 * 24)
+                      );
+                      return (
+                        <TableRow key={fee.id} className="border-red-100">
+                          <TableCell className="font-medium">{fee.student_name}</TableCell>
+                          <TableCell>{fee.fee_type}</TableCell>
+                          <TableCell className="font-bold">${fee.amount.toFixed(2)}</TableCell>
+                          <TableCell>{fee.due_date}</TableCell>
+                          <TableCell>
+                            <Badge variant="destructive">{daysOverdue} days</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => {
+                                setSelectedFee(fee);
+                                setIsPaymentOpen(true);
+                              }}
+                            >
+                              Collect Now
                             </Button>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                
-                <Separator className="my-6" />
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-4">Additional Fees</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Registration Fee</span>
-                        <span className="font-medium">$150</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Sports Fee</span>
-                        <span className="font-medium">$75</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Library Fee</span>
-                        <span className="font-medium">$50</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Technology Fee</span>
-                        <span className="font-medium">$100</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-4">Discounts & Scholarships</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Sibling Discount</span>
-                        <span className="font-medium text-green-600">10%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Early Payment Discount</span>
-                        <span className="font-medium text-green-600">5%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Academic Scholarship</span>
-                        <span className="font-medium text-green-600">25%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={() => toast.info("Updating fee structure...")}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Update Fee Structure
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {/* Reports Tab */}
-          <TabsContent value="reports">
-            <div className="grid lg:grid-cols-2 gap-8">
-              <Card className="border-gray-200 shadow-lg">
-                <CardHeader>
-                  <CardTitle>Generate Financial Reports</CardTitle>
-                  <CardDescription>
-                    Create detailed financial reports for different periods
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <Button variant="outline" className="flex-1">
-                        <Download className="h-4 w-4 mr-2" />
-                        Monthly Report
-                      </Button>
-                      <Button variant="outline" className="flex-1">
-                        <Download className="h-4 w-4 mr-2" />
-                        Quarterly Report
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Button variant="outline" className="flex-1">
-                        <Download className="h-4 w-4 mr-2" />
-                        Annual Report
-                      </Button>
-                      <Button variant="outline" className="flex-1">
-                        <Download className="h-4 w-4 mr-2" />
-                        Tax Report
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-4">Custom Report</h4>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm text-gray-600 mb-1 block">Start Date</label>
-                          <Input type="date" />
-                        </div>
-                        <div>
-                          <label className="text-sm text-gray-600 mb-1 block">End Date</label>
-                          <Input type="date" />
-                        </div>
-                      </div>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select report type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="collection">Collection Report</SelectItem>
-                          <SelectItem value="pending">Pending Payments</SelectItem>
-                          <SelectItem value="overdue">Overdue Analysis</SelectItem>
-                          <SelectItem value="student">Student-wise Report</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button className="w-full">
-                        <Printer className="h-4 w-4 mr-2" />
-                        Generate Custom Report
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-gray-200 shadow-lg">
-                <CardHeader>
-                  <CardTitle>Report History</CardTitle>
-                  <CardDescription>
-                    Previously generated financial reports
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { name: "October 2024 Collection Report", date: "Oct 20, 2024", size: "2.4 MB" },
-                      { name: "Q3 2024 Financial Summary", date: "Oct 5, 2024", size: "3.1 MB" },
-                      { name: "Annual Fee Collection 2023-24", date: "Sep 30, 2024", size: "5.2 MB" },
-                      { name: "Overdue Payments Report", date: "Sep 15, 2024", size: "1.8 MB" }
-                    ].map((report, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{report.name}</h4>
-                          <p className="text-sm text-gray-500">Generated: {report.date}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">{report.size}</span>
-                          <Button size="sm" variant="ghost">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+        <TabsContent value="paid" className="space-y-4">
+          <Card className="bg-white/50 backdrop-blur-sm border-green-200 bg-green-50/20">
+            <CardHeader>
+              <CardTitle className="text-green-700">Paid Fees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Fee Type</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Paid Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredFees.filter(f => f.status === 'paid').map((fee) => (
+                      <TableRow key={fee.id} className="border-green-100">
+                        <TableCell className="font-medium">{fee.student_name}</TableCell>
+                        <TableCell>{fee.fee_type}</TableCell>
+                        <TableCell className="font-bold">${fee.amount.toFixed(2)}</TableCell>
+                        <TableCell>{fee.due_date}</TableCell>
+                        <TableCell>{fee.paid_date ? new Date(fee.paid_date).toLocaleDateString() : '-'}</TableCell>
+                      </TableRow>
                     ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Payment Dialog */}
+      {selectedFee && (
+        <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Record Payment</DialogTitle>
+              <DialogDescription>
+                Record payment for {selectedFee.student_name} - {selectedFee.fee_type} (${selectedFee.amount.toFixed(2)})
+              </DialogDescription>
+            </DialogHeader>
+            <PaymentForm 
+              fee={selectedFee}
+              onClose={() => {
+                setIsPaymentOpen(false);
+                setSelectedFee(null);
+              }}
+              onSubmit={(amount) => handleRecordPayment(selectedFee.id, amount)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
-  )
+  );
 }
 
-export default Finance
+function AddFeeDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (data: any) => void }) {
+  const [formData, setFormData] = useState({
+    student_id: '',
+    fee_type: '',
+    amount: '',
+    due_date: '',
+  });
+
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    try {
+      const data = await apiCall.get('/api/students');
+      setStudents(data);
+    } catch (error) {
+      console.error('Failed to fetch students', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      student_id: parseInt(formData.student_id),
+      fee_type: formData.fee_type,
+      amount: parseFloat(formData.amount),
+      due_date: formData.due_date,
+    });
+  };
+
+  return (
+    <DialogContent className="sm:max-w-[500px]">
+      <DialogHeader>
+        <DialogTitle>Add New Fee</DialogTitle>
+        <DialogDescription>
+          Create a new fee entry for a student
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="student_id">Student *</Label>
+          <Select value={formData.student_id} onValueChange={(value) => setFormData({...formData, student_id: value})}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select student" />
+            </SelectTrigger>
+            <SelectContent>
+              {students.map((student) => (
+                <SelectItem key={student.id} value={student.id.toString()}>
+                  {student.name} ({student.student_id})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="fee_type">Fee Type *</Label>
+          <Select value={formData.fee_type} onValueChange={(value) => setFormData({...formData, fee_type: value})}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select fee type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tuition">Tuition</SelectItem>
+              <SelectItem value="hostel">Hostel</SelectItem>
+              <SelectItem value="uniform">Uniform</SelectItem>
+              <SelectItem value="exam">Exam Fee</SelectItem>
+              <SelectItem value="transportation">Transportation</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="amount">Amount *</Label>
+          <Input 
+            id="amount" 
+            type="number" 
+            placeholder="0.00" 
+            step="0.01"
+            value={formData.amount}
+            onChange={(e) => setFormData({...formData, amount: e.target.value})}
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="due_date">Due Date *</Label>
+          <Input 
+            id="due_date" 
+            type="date" 
+            value={formData.due_date}
+            onChange={(e) => setFormData({...formData, due_date: e.target.value})}
+            required
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">
+            Add Fee
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  );
+}
+
+function PaymentForm({ fee, onClose, onSubmit }: { fee: Fee; onClose: () => void; onSubmit: (amount: number) => void }) {
+  const [amount, setAmount] = useState(fee.amount.toString());
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(parseFloat(amount));
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+      <div className="space-y-2">
+        <Label htmlFor="payment_amount">Amount to Record *</Label>
+        <Input 
+          id="payment_amount" 
+          type="number" 
+          placeholder="0.00" 
+          step="0.01"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+        />
+        <p className="text-sm text-muted-foreground">
+          Full amount due: ${fee.amount.toFixed(2)}
+        </p>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit">
+          Record Payment
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}

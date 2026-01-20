@@ -1,147 +1,181 @@
-// src/pages/teacher/Schedule.tsx
 import { useState } from 'react';
-import { 
-  Calendar as CalendarIcon,
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+  Edit2,
+  Calendar,
   Clock,
   MapPin,
   Users,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  MoreVertical
+  Loader
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
-interface ScheduleItem {
-  id: string;
-  title: string;
-  type: 'class' | 'meeting' | 'exam' | 'office_hours';
-  className?: string;
-  subject?: string;
+interface ScheduleEvent {
+  id: number;
+  classId: number;
+  className: string;
+  subject: string;
   startTime: string;
   endTime: string;
-  date: string;
+  room: string;
   day: string;
-  location: string;
-  description?: string;
-  participants?: number;
+  students: number;
 }
 
-export default function Schedule() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+const mockSchedule: ScheduleEvent[] = [
+  {
+    id: 1,
+    classId: 1,
+    className: 'Grade 9-A',
+    subject: 'Mathematics',
+    startTime: '08:00',
+    endTime: '09:00',
+    room: 'Room 201',
+    day: 'Monday',
+    students: 45
+  },
+  {
+    id: 2,
+    classId: 2,
+    className: 'Grade 9-B',
+    subject: 'English',
+    startTime: '09:00',
+    endTime: '10:00',
+    room: 'Room 202',
+    day: 'Monday',
+    students: 42
+  },
+  {
+    id: 3,
+    classId: 1,
+    className: 'Grade 9-A',
+    subject: 'Science',
+    startTime: '10:30',
+    endTime: '11:30',
+    room: 'Room 201',
+    day: 'Tuesday',
+    students: 45
+  },
+  {
+    id: 4,
+    classId: 3,
+    className: 'Grade 10-A',
+    subject: 'Mathematics',
+    startTime: '11:30',
+    endTime: '12:30',
+    room: 'Room 301',
+    day: 'Wednesday',
+    students: 38
+  }
+];
 
-  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const currentDayName = daysOfWeek[currentDate.getDay()];
-  const currentDateStr = currentDate.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const timeSlots = ['08:00', '09:00', '10:00', '10:30', '11:00', '11:30', '12:00', '13:00', '14:00', '14:30'];
+
+export default function TeacherSchedule() {
+  const [schedule, setSchedule] = useState<ScheduleEvent[]>(mockSchedule);
+  const [selectedDay, setSelectedDay] = useState<string>('Monday');
+  const [saving, setSaving] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
+
+  const [formData, setFormData] = useState({
+    classId: '',
+    className: '',
+    subject: '',
+    startTime: '08:00',
+    endTime: '09:00',
+    room: '',
+    day: 'Monday',
+    students: ''
   });
 
-  const scheduleItems: ScheduleItem[] = [
-    {
-      id: '1',
-      title: 'Mathematics Class',
-      type: 'class',
-      className: 'Grade 10-A',
-      subject: 'Mathematics',
-      startTime: '09:00',
-      endTime: '09:45',
-      date: '2024-01-15',
-      day: 'Monday',
-      location: 'Room 201',
-      participants: 24
-    },
-    {
-      id: '2',
-      title: 'Physics Class',
-      type: 'class',
-      className: 'Grade 11-B',
-      subject: 'Physics',
-      startTime: '11:00',
-      endTime: '12:00',
-      date: '2024-01-15',
-      day: 'Monday',
-      location: 'Lab 3',
-      participants: 22
-    },
-    {
-      id: '3',
-      title: 'Department Meeting',
-      type: 'meeting',
-      startTime: '14:00',
-      endTime: '15:00',
-      date: '2024-01-15',
-      day: 'Monday',
-      location: 'Conference Room A',
-      description: 'Monthly department meeting'
-    },
-    {
-      id: '4',
-      title: 'Office Hours',
-      type: 'office_hours',
-      startTime: '15:30',
-      endTime: '17:00',
-      date: '2024-01-15',
-      day: 'Monday',
-      location: 'Office 305',
-      description: 'Student consultation hours'
-    },
-    {
-      id: '5',
-      title: 'Mid-term Exam',
-      type: 'exam',
-      className: 'Grade 12-A',
-      subject: 'Advanced Mathematics',
-      startTime: '10:00',
-      endTime: '12:00',
-      date: '2024-01-16',
-      day: 'Tuesday',
-      location: 'Exam Hall',
-      participants: 20
-    },
-  ];
+  const daySchedule = schedule.filter(event => event.day === selectedDay);
+  const sortedDaySchedule = daySchedule.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  const todaySchedule = scheduleItems.filter(item => item.date === '2024-01-15');
-
-  const navigateDate = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setDate(newDate.getDate() - 1);
-    } else {
-      newDate.setDate(newDate.getDate() + 1);
+  const handleAddEvent = async () => {
+    if (!formData.className || !formData.subject || !formData.room) {
+      toast.error('Please fill all required fields');
+      return;
     }
-    setCurrentDate(newDate);
-  };
 
-  const getTypeColor = (type: ScheduleItem['type']) => {
-    switch (type) {
-      case 'class': return 'bg-blue-100 text-blue-800';
-      case 'meeting': return 'bg-purple-100 text-purple-800';
-      case 'exam': return 'bg-red-100 text-red-800';
-      case 'office_hours': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+    try {
+      setSaving(true);
+      const newEvent: ScheduleEvent = {
+        id: Math.max(...schedule.map(s => s.id), 0) + 1,
+        classId: parseInt(formData.classId) || 0,
+        className: formData.className,
+        subject: formData.subject,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        room: formData.room,
+        day: formData.day,
+        students: parseInt(formData.students) || 0
+      };
+
+      setSchedule([...schedule, newEvent]);
+      toast.success('Event added successfully');
+      setFormData({
+        classId: '',
+        className: '',
+        subject: '',
+        startTime: '08:00',
+        endTime: '09:00',
+        room: '',
+        day: 'Monday',
+        students: ''
+      });
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      toast.error('Failed to add event');
+      console.error(error);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getTypeIcon = (type: ScheduleItem['type']) => {
-    switch (type) {
-      case 'class': return <Users className="h-4 w-4" />;
-      case 'meeting': return <Users className="h-4 w-4" />;
-      case 'exam': return <CalendarIcon className="h-4 w-4" />;
-      case 'office_hours': return <Clock className="h-4 w-4" />;
-      default: return <CalendarIcon className="h-4 w-4" />;
+  const handleDeleteEvent = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this event?')) return;
+
+    try {
+      setSaving(true);
+      setSchedule(schedule.filter(e => e.id !== id));
+      toast.success('Event deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete event');
+      console.error(error);
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const getSubjectColor = (subject: string) => {
+    const colors: Record<string, string> = {
+      'Mathematics': 'bg-blue-100 text-blue-800',
+      'English': 'bg-green-100 text-green-800',
+      'Science': 'bg-purple-100 text-purple-800',
+      'History': 'bg-amber-100 text-amber-800',
+      'Urdu': 'bg-red-100 text-red-800',
+      'Islamic Studies': 'bg-green-100 text-green-800'
+    };
+    return colors[subject] || 'bg-gray-100 text-gray-800';
+  };
+
+  const stats = {
+    totalClasses: new Set(schedule.map(s => s.classId)).size,
+    totalHours: schedule.reduce((sum) => sum + 1, 0),
+    eventsThisWeek: schedule.filter(e => daysOfWeek.includes(e.day)).length,
+    totalStudents: schedule.reduce((sum, s) => sum + s.students, 0)
   };
 
   return (
@@ -149,332 +183,308 @@ export default function Schedule() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Schedule</h1>
-          <p className="text-muted-foreground">Manage your class schedule and appointments</p>
+          <h1 className="text-3xl font-bold tracking-tight">My Schedule</h1>
+          <p className="text-muted-foreground">Manage your class schedule</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Event
-            </Button>
-          </DialogTrigger>
-          <AddEventDialog onClose={() => setIsAddDialogOpen(false)} />
-        </Dialog>
+        <Button 
+          onClick={() => setIsAddDialogOpen(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Event
+        </Button>
       </div>
 
-      {/* Date Navigation */}
-      <Card className="bg-white/50 backdrop-blur-sm">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={() => navigateDate('prev')}>
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Previous Day
-            </Button>
-            
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="bg-white/50 backdrop-blur-sm">
+          <CardContent className="pt-6">
             <div className="text-center">
-              <div className="text-2xl font-bold">{currentDayName}</div>
-              <div className="text-muted-foreground">{currentDateStr}</div>
+              <div className="text-2xl font-bold">{stats.totalClasses}</div>
+              <p className="text-sm text-muted-foreground">Classes</p>
             </div>
-            
-            <Button variant="outline" onClick={() => navigateDate('next')}>
-              Next Day
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-blue-50/50 backdrop-blur-sm border-blue-200">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{stats.totalHours}</div>
+              <p className="text-sm text-muted-foreground">Hours/Week</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-green-50/50 backdrop-blur-sm border-green-200">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{stats.eventsThisWeek}</div>
+              <p className="text-sm text-muted-foreground">This Week</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-purple-50/50 backdrop-blur-sm border-purple-200">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{stats.totalStudents}</div>
+              <p className="text-sm text-muted-foreground">Total Students</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Weekly View */}
+      <Card className="bg-white/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle>Weekly Schedule</CardTitle>
+          <CardDescription>Your teaching schedule for the week</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Day selector */}
+          <div className="grid grid-cols-5 gap-2 mb-6">
+            {daysOfWeek.map(day => (
+              <Button
+                key={day}
+                variant={selectedDay === day ? 'default' : 'outline'}
+                onClick={() => setSelectedDay(day)}
+                className="text-sm"
+              >
+                {day.substring(0, 3)}
+              </Button>
+            ))}
+          </div>
+
+          {/* Schedule for selected day */}
+          <div className="space-y-3">
+            {sortedDaySchedule.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No classes scheduled for {selectedDay}</p>
+              </div>
+            ) : (
+              sortedDaySchedule.map(event => (
+                <div
+                  key={event.id}
+                  className={`border rounded-lg p-4 ${getSubjectColor(event.subject)}`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="font-semibold">{event.subject}</h3>
+                      <p className="text-sm opacity-75">{event.className}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingEvent(event)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{event.startTime} - {event.endTime}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      <span>{event.room}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      <span>{event.students} students</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Schedule Views */}
-      <Tabs defaultValue="day" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="day">Day View</TabsTrigger>
-          <TabsTrigger value="week">Week View</TabsTrigger>
-          <TabsTrigger value="month">Month View</TabsTrigger>
-          <TabsTrigger value="list">List View</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="day" className="space-y-4">
-          {/* Time Slots */}
-          <div className="space-y-4">
-            {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'].map((time) => {
-              const events = todaySchedule.filter(event => 
-                event.startTime <= time && event.endTime > time
-              );
-              
-              return (
-                <div key={time} className="flex">
-                  <div className="w-24 flex-shrink-0 pt-2">
-                    <div className="text-sm font-medium">{time}</div>
-                  </div>
-                  <div className="flex-1 border-t pt-2 min-h-[80px]">
-                    {events.map((event) => (
-                      <div 
-                        key={event.id} 
-                        className="mb-2 p-3 rounded-lg border bg-white shadow-sm"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Badge className={getTypeColor(event.type)}>
-                              {getTypeIcon(event.type)}
-                              <span className="ml-1">
-                                {event.type.replace('_', ' ').charAt(0).toUpperCase() + event.type.slice(1).replace('_', ' ')}
-                              </span>
-                            </Badge>
-                            <span className="font-medium">{event.title}</span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            {event.startTime} - {event.endTime}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="flex items-center">
-                            <MapPin className="mr-2 h-3 w-3 text-muted-foreground" />
-                            <span>{event.location}</span>
-                          </div>
-                          {event.className && (
-                            <div className="flex items-center">
-                              <Users className="mr-2 h-3 w-3 text-muted-foreground" />
-                              <span>{event.className} • {event.participants} students</span>
-                            </div>
-                          )}
-                        </div>
-                        {event.description && (
-                          <p className="text-sm text-muted-foreground mt-2">{event.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="list" className="space-y-4">
-          <Card className="bg-white/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>All Scheduled Events</CardTitle>
-              <CardDescription>Complete list of your scheduled events</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {scheduleItems.map((event) => (
-                  <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50/50 transition-colors">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 rounded-lg bg-indigo-100">
-                        <CalendarIcon className="h-5 w-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{event.title}</h3>
-                          <Badge variant="outline" className={getTypeColor(event.type)}>
-                            {event.type.replace('_', ' ')}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center">
-                            <CalendarIcon className="mr-1 h-3 w-3" />
-                            {event.day}, {event.date}
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="mr-1 h-3 w-3" />
-                            {event.startTime} - {event.endTime}
-                          </span>
-                          <span className="flex items-center">
-                            <MapPin className="mr-1 h-3 w-3" />
-                            {event.location}
-                          </span>
-                        </div>
-                        {event.className && (
-                          <p className="text-sm mt-1">{event.className} • {event.subject}</p>
-                        )}
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Upcoming Events */}
+      {/* List View */}
       <Card className="bg-white/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle>Upcoming Events This Week</CardTitle>
-          <CardDescription>Important events in the coming days</CardDescription>
+          <CardTitle>All Scheduled Classes</CardTitle>
+          <CardDescription>{schedule.length} events scheduled</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {scheduleItems.slice(0, 4).map((event) => (
-              <div key={event.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <Badge className={getTypeColor(event.type)}>
-                      {event.type.replace('_', ' ')}
-                    </Badge>
-                    <h3 className="font-semibold mt-2">{event.title}</h3>
-                  </div>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {schedule.map(event => (
+              <div
+                key={event.id}
+                className={`border rounded p-3 flex items-center justify-between ${getSubjectColor(event.subject)}`}
+              >
+                <div>
+                  <p className="font-medium">{event.subject} - {event.className}</p>
+                  <p className="text-sm opacity-75">
+                    {event.day} • {event.startTime}-{event.endTime} • {event.room}
+                  </p>
                 </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center">
-                    <CalendarIcon className="mr-2 h-3 w-3 text-muted-foreground" />
-                    <span>{event.day}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="mr-2 h-3 w-3 text-muted-foreground" />
-                    <span>{event.startTime} - {event.endTime}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <MapPin className="mr-2 h-3 w-3 text-muted-foreground" />
-                    <span>{event.location}</span>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" className="w-full mt-4">
-                  View Details
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteEvent(event.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
-}
 
-function AddEventDialog({ onClose }: { onClose: () => void }) {
-  const [eventType, setEventType] = useState('class');
-
-  return (
-    <DialogContent className="sm:max-w-[600px] bg-white/90 backdrop-blur-sm">
-      <DialogHeader>
-        <DialogTitle>Add New Event</DialogTitle>
-        <DialogDescription>
-          Schedule a new class, meeting, exam, or office hours
-        </DialogDescription>
-      </DialogHeader>
-      <div className="grid gap-6 py-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Event Title</Label>
-            <Input id="title" placeholder="Enter event title" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="type">Event Type</Label>
-            <Select value={eventType} onValueChange={setEventType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="class">Class</SelectItem>
-                <SelectItem value="meeting">Meeting</SelectItem>
-                <SelectItem value="exam">Exam</SelectItem>
-                <SelectItem value="office_hours">Office Hours</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {eventType === 'class' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="class">Class</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="math-10a">Mathematics 10-A</SelectItem>
-                  <SelectItem value="physics-11b">Physics 11-B</SelectItem>
-                  <SelectItem value="math-12a">Advanced Mathematics 12-A</SelectItem>
-                </SelectContent>
-              </Select>
+      {/* Add Event Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Schedule Event</DialogTitle>
+            <DialogDescription>
+              Add a new class to your schedule
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="class">Class Name</Label>
+              <Input
+                id="class"
+                placeholder="e.g., Grade 9-A"
+                value={formData.className}
+                onChange={(e) => setFormData({...formData, className: e.target.value})}
+              />
             </div>
-            <div className="space-y-2">
+
+            <div>
               <Label htmlFor="subject">Subject</Label>
-              <Input id="subject" placeholder="Enter subject" />
+              <Input
+                id="subject"
+                placeholder="e.g., Mathematics"
+                value={formData.subject}
+                onChange={(e) => setFormData({...formData, subject: e.target.value})}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="day">Day</Label>
+                <Select 
+                  value={formData.day}
+                  onValueChange={(value) => setFormData({...formData, day: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {daysOfWeek.map(day => (
+                      <SelectItem key={day} value={day}>{day}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="room">Room</Label>
+                <Input
+                  id="room"
+                  placeholder="e.g., Room 201"
+                  value={formData.room}
+                  onChange={(e) => setFormData({...formData, room: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="start">Start Time</Label>
+                <Select 
+                  value={formData.startTime}
+                  onValueChange={(value) => setFormData({...formData, startTime: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeSlots.map(time => (
+                      <SelectItem key={time} value={time}>{time}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="end">End Time</Label>
+                <Select 
+                  value={formData.endTime}
+                  onValueChange={(value) => setFormData({...formData, endTime: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeSlots.map(time => (
+                      <SelectItem key={time} value={time}>{time}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="students">Number of Students</Label>
+              <Input
+                id="students"
+                type="number"
+                placeholder="0"
+                value={formData.students}
+                onChange={(e) => setFormData({...formData, students: e.target.value})}
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleAddEvent} disabled={saving}>
+                {saving ? <Loader className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                {saving ? 'Adding...' : 'Add Event'}
+              </Button>
             </div>
           </div>
-        )}
+        </DialogContent>
+      </Dialog>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input id="date" type="date" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="day">Day</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select day" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monday">Monday</SelectItem>
-                <SelectItem value="tuesday">Tuesday</SelectItem>
-                <SelectItem value="wednesday">Wednesday</SelectItem>
-                <SelectItem value="thursday">Thursday</SelectItem>
-                <SelectItem value="friday">Friday</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+      {/* Edit Event Dialog */}
+      {editingEvent && (
+        <Dialog open={!!editingEvent} onOpenChange={() => setEditingEvent(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Event</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Event Details (Read-only)</Label>
+                <div className="bg-gray-50 p-3 rounded">
+                  <p className="font-medium">{editingEvent.subject}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {editingEvent.day} • {editingEvent.startTime}-{editingEvent.endTime}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{editingEvent.room}</p>
+                </div>
+              </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="startTime">Start Time</Label>
-            <Input id="startTime" type="time" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="endTime">End Time</Label>
-            <Input id="endTime" type="time" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input id="location" placeholder="Room number or location" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="duration">Duration (minutes)</Label>
-            <Input id="duration" type="number" placeholder="45" />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea 
-            id="description" 
-            placeholder="Additional details about the event..." 
-            className="min-h-[100px]"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Recurrence</Label>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">One-time</Button>
-            <Button variant="outline" size="sm">Daily</Button>
-            <Button variant="outline" size="sm">Weekly</Button>
-            <Button variant="outline" size="sm">Monthly</Button>
-          </div>
-        </div>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={onClose}>
-          Schedule Event
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setEditingEvent(null)}>Close</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
   );
 }

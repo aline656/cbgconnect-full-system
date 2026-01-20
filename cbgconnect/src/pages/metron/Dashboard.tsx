@@ -18,7 +18,7 @@ export default function MetronDashboard() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const profile = await apiService.getCurrentUser();
+        const profile = await apiService.getProfileByRole('metron');
         setUserProfile(profile);
       } catch (err: any) {
         // Don't show error for network errors - just log it
@@ -76,18 +76,66 @@ export default function MetronDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Metron Dashboard</h1>
-          <p className="text-muted-foreground">Manage girls' dormitory, activities, and reports</p>
+          <p className="text-muted-foreground">
+            Welcome back, {userProfile?.name || 'Metron'} - Manage girls' dormitory, activities, and reports
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon">
             <Bell className="h-4 w-4" />
           </Button>
+          <div className="text-right">
+            <p className="text-sm font-medium">{userProfile?.name || 'Metron'}</p>
+            <p className="text-xs text-muted-foreground">{userProfile?.department || 'Girls\' Dormitory'}</p>
+          </div>
           <Avatar>
-            <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Metron" />
-            <AvatarFallback>MT</AvatarFallback>
+            <AvatarImage src={userProfile?.profileImage} />
+            <AvatarFallback>{userProfile?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'MT'}</AvatarFallback>
           </Avatar>
         </div>
       </div>
+
+      {/* User Profile Card */}
+      <Card className="bg-white/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle>Profile Information</CardTitle>
+          <CardDescription>Your personal and professional details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm font-medium">Full Name</p>
+                <p className="text-sm text-muted-foreground">{userProfile?.name || 'Loading...'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Email Address</p>
+                <p className="text-sm text-muted-foreground">{userProfile?.email || 'Loading...'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Department</p>
+                <p className="text-sm text-muted-foreground">{userProfile?.department || 'Girls\' Dormitory'}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm font-medium">Phone Number</p>
+                <p className="text-sm text-muted-foreground">{userProfile?.phone || 'Not provided'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Role</p>
+                <p className="text-sm text-muted-foreground capitalize">{userProfile?.role || 'Metron'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Member Since</p>
+                <p className="text-sm text-muted-foreground">
+                  {userProfile?.joinDate ? new Date(userProfile.joinDate).toLocaleDateString() : 'Loading...'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -97,9 +145,9 @@ export default function MetronDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalGirls}</div>
+            <div className="text-2xl font-bold">{userProfile?.statistics?.totalGirlsManaged || stats.totalGirls}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.internalGirls} internal, {stats.externalGirls} external
+              Under your supervision
             </p>
           </CardContent>
         </Card>
@@ -110,30 +158,30 @@ export default function MetronDashboard() {
             <Home className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.dormitoryOccupancy}%</div>
-            <Progress value={stats.dormitoryOccupancy} className="mt-2" />
+            <div className="text-2xl font-bold">{userProfile?.statistics?.currentDormitoryOccupancy || stats.dormitoryOccupancy}%</div>
+            <Progress value={userProfile?.statistics?.currentDormitoryOccupancy || stats.dormitoryOccupancy} className="mt-2" />
           </CardContent>
         </Card>
 
         <Card className="bg-white/50 backdrop-blur-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Activities</CardTitle>
+            <CardTitle className="text-sm font-medium">Activities Organized</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeActivities}</div>
-            <p className="text-xs text-muted-foreground">4 cultural, 3 sports, 5 academic</p>
+            <div className="text-2xl font-bold">{userProfile?.statistics?.activitiesOrganized || stats.activeActivities}</div>
+            <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
 
         <Card className="bg-white/50 backdrop-blur-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reports</CardTitle>
+            <CardTitle className="text-sm font-medium">Reports Completed</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingReports}</div>
-            <p className="text-xs text-muted-foreground">2 require immediate attention</p>
+            <div className="text-2xl font-bold">{userProfile?.statistics?.reportsCompleted || stats.pendingReports}</div>
+            <p className="text-xs text-muted-foreground">Total reports filed</p>
           </CardContent>
         </Card>
       </div>

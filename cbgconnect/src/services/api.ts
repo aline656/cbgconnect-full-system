@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
 class ApiService {
   private api: any;
@@ -10,7 +10,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 10000,
+      timeout: 30000, // Increased from 10000 to 30000ms for file uploads
       headers: {
         'Content-Type': 'application/json',
       },
@@ -19,7 +19,7 @@ class ApiService {
     // Add request interceptor to include auth token
     this.api.interceptors.request.use(
       (config: any) => {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('token'); // Changed from 'authToken' to 'token'
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -34,7 +34,7 @@ class ApiService {
       (error: any) => {
         // Only logout on 401 Unauthorized, not on network errors
         if (error.response?.status === 401) {
-          localStorage.removeItem('authToken');
+          localStorage.removeItem('token'); // Changed from 'authToken' to 'token'
           localStorage.removeItem('userId');
           localStorage.removeItem('userRole');
           window.location.href = '/login';
@@ -80,6 +80,47 @@ class ApiService {
     });
   }
 
+  async getProfileByRole(role: string) {
+    return this.request({
+      method: 'GET',
+      url: `/profile/${role}`,
+    });
+  }
+
+  async updateProfileByRole(role: string, profileData: any) {
+    return this.request({
+      method: 'PUT',
+      url: `/profile/${role}`,
+      data: profileData,
+    });
+  }
+
+  async uploadProfileImage(role: string, file: File) {
+    const formData = new FormData();
+    formData.append('profileImage', file);
+    
+    return this.api.post(`/profile/${role}/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 60000, // 60 seconds for file uploads
+    });
+  }
+
+  async getGirls() {
+    return this.request({
+      method: 'GET',
+      url: '/girls',
+    });
+  }
+
+  async getBoys() {
+    return this.request({
+      method: 'GET',
+      url: '/boys',
+    });
+  }
+
   async updateUserProfile(userId: string, userData: any) {
     return this.request({
       method: 'PUT',
@@ -93,28 +134,6 @@ class ApiService {
     return this.request({
       method: 'GET',
       url: role ? `/users?role=${role}` : '/users',
-    });
-  }
-
-  async updateUser(userId: string, userData: any) {
-    return this.request({
-      method: 'PUT',
-      url: `/users/${userId}`,
-      data: userData,
-    });
-  }
-
-  async uploadProfileImage(userId: string, file: File) {
-    const formData = new FormData();
-    formData.append('profileImage', file);
-    
-    return this.request({
-      method: 'POST',
-      url: `/users/${userId}/profile-image`,
-      data: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
     });
   }
 
@@ -211,11 +230,7 @@ class ApiService {
   }
 
   async updateDormitoryAssignment(assignmentId: string, data: any) {
-    return this.request({
-      method: 'PUT',
-      url: `/metron/dormitory-assignments/${assignmentId}`,
-      data,
-    });
+    return this.api.put(`/metron/dormitory-assignments/${assignmentId}`, data);
   }
 
   async getMetronAnalytics() {
@@ -275,6 +290,191 @@ class ApiService {
     return this.request({
       method: 'GET',
       url: `/notifications?role=${userRole}`,
+    });
+  }
+
+  // Academic years / archive
+  async getArchivedAcademicYears() {
+    return this.request({
+      method: 'GET',
+      url: '/admin/academic-years',
+    });
+  }
+
+  async getAcademicYearDetails(yearId: string) {
+    return this.request({
+      method: 'GET',
+      url: `/admin/academic-years/${yearId}`,
+    });
+  }
+
+  async createAcademicYear(yearData: any) {
+    return this.request({
+      method: 'POST',
+      url: '/admin/academic-years',
+      data: yearData,
+    });
+  }
+
+  async updateAcademicYear(yearId: string, yearData: any) {
+    return this.request({
+      method: 'PUT',
+      url: `/admin/academic-years/${yearId}`,
+      data: yearData,
+    });
+  }
+
+  async deleteAcademicYear(yearId: string) {
+    return this.request({
+      method: 'DELETE',
+      url: `/admin/academic-years/${yearId}`,
+    });
+  }
+
+  // Terms management
+  async getTerms(academicYearId?: string) {
+    const url = academicYearId 
+      ? `/admin/terms?academicYearId=${academicYearId}`
+      : '/admin/terms';
+    return this.request({
+      method: 'GET',
+      url,
+    });
+  }
+
+  async createTerm(termData: any) {
+    return this.request({
+      method: 'POST',
+      url: '/admin/terms',
+      data: termData,
+    });
+  }
+
+  async updateTerm(termId: string, termData: any) {
+    return this.request({
+      method: 'PUT',
+      url: `/admin/terms/${termId}`,
+      data: termData,
+    });
+  }
+
+  async deleteTerm(termId: string) {
+    return this.request({
+      method: 'DELETE',
+      url: `/admin/terms/${termId}`,
+    });
+  }
+
+  // Lessons management
+  async getLessons(filters?: any) {
+    let url = '/admin/lessons';
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.academicYearId) params.append('academicYearId', filters.academicYearId);
+      if (filters.teacherId) params.append('teacherId', filters.teacherId);
+      if (filters.classId) params.append('classId', filters.classId);
+      if (params.toString()) url += '?' + params.toString();
+    }
+    return this.request({
+      method: 'GET',
+      url,
+    });
+  }
+
+  async createLesson(lessonData: any) {
+    return this.request({
+      method: 'POST',
+      url: '/admin/lessons',
+      data: lessonData,
+    });
+  }
+
+  async updateLesson(lessonId: string, lessonData: any) {
+    return this.request({
+      method: 'PUT',
+      url: `/admin/lessons/${lessonId}`,
+      data: lessonData,
+    });
+  }
+
+  async deleteLesson(lessonId: string) {
+    return this.request({
+      method: 'DELETE',
+      url: `/admin/lessons/${lessonId}`,
+    });
+  }
+
+  // Grades management
+  async getGrades(filters?: any) {
+    let url = '/admin/grades-register';
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.termId) params.append('termId', filters.termId);
+      if (filters.subjectId) params.append('subjectId', filters.subjectId);
+      if (params.toString()) url += '?' + params.toString();
+    }
+    return this.request({
+      method: 'GET',
+      url,
+    });
+  }
+
+  async createGrade(gradeData: any) {
+    return this.request({
+      method: 'POST',
+      url: '/admin/grades-register',
+      data: gradeData,
+    });
+  }
+
+  async updateGrade(gradeId: string, gradeData: any) {
+    return this.request({
+      method: 'PUT',
+      url: `/admin/grades-register/${gradeId}`,
+      data: gradeData,
+    });
+  }
+
+  async deleteGrade(gradeId: string) {
+    return this.request({
+      method: 'DELETE',
+      url: `/admin/grades-register/${gradeId}`,
+    });
+  }
+
+  // Documents
+  async getDocuments(filters?: any) {
+    let url = '/documents';
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.studentId) params.append('studentId', filters.studentId);
+      if (filters.status) params.append('status', filters.status);
+      if (params.toString()) url += '?' + params.toString();
+    }
+    return this.request({
+      method: 'GET',
+      url,
+    });
+  }
+
+  async uploadDocument(studentId: string, documentType: string, file: File, expiryDate?: string) {
+    const formData = new FormData();
+    formData.append('studentId', studentId);
+    formData.append('documentType', documentType);
+    formData.append('document', file);
+    if (expiryDate) formData.append('expiryDate', expiryDate);
+
+    return this.api.post('/documents/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  }
+
+  async deleteDocument(documentId: string) {
+    return this.request({
+      method: 'DELETE',
+      url: `/documents/${documentId}`,
     });
   }
 
