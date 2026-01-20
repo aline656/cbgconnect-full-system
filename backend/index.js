@@ -12,6 +12,16 @@ const { createHealthRouter } = require("./routes/health")
 const { createSecretaryRouter } = require("./routes/secretary")
 const { createParentsMeRouter } = require("./routes/parentsMe")
 const { createParentsPublicRouter } = require("./routes/parentsPublic")
+const { createDashboardRouter } = require("./routes/dashboard")
+const { createProfileRouter } = require("./routes/profile")
+const { createStudentsRouter } = require("./routes/students")
+const { createAttendanceRouter } = require("./routes/attendance")
+const { createGradesRouter } = require("./routes/grades")
+const { createFinanceRouter } = require("./routes/finance")
+const { createAcademicYearsRouter } = require("./routes/academicYears")
+const { createTermsRouter } = require("./routes/terms")
+const { createLessonsRouter } = require("./routes/lessons")
+const { createGradesManagementRouter } = require("./routes/gradesManagement")
 
 const app = express()
 
@@ -28,6 +38,7 @@ app.use(
 )
 
 app.use(express.json())
+app.use('/uploads', express.static('uploads'))
 
 app.use(
   "/api/auth",
@@ -74,6 +85,105 @@ app.use(
   "/api",
   createParentsPublicRouter({
     pool,
+  }),
+)
+
+app.use(
+  "/api",
+  createDashboardRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createProfileRouter({
+    pool,
+    authRequired,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createStudentsRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createAttendanceRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createGradesRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createFinanceRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createAcademicYearsRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createTermsRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createLessonsRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
+  }),
+)
+
+app.use(
+  "/api",
+  createGradesManagementRouter({
+    pool,
+    authRequired,
+    requireRole,
+    apiError,
   }),
 )
 

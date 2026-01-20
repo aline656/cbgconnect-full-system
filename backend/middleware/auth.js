@@ -32,9 +32,9 @@ function authRequired(jwtSecret) {
   }
 }
 
-function requireRole(role) {
+function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user || req.user.role !== role) {
+    if (!req.user || !roles.includes(req.user.role)) {
       apiError(res, 403, "Forbidden")
       return
     }
