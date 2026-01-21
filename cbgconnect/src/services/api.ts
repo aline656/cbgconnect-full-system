@@ -287,10 +287,16 @@ class ApiService {
 
   // Notifications
   async getNotifications(userRole: string) {
-    return this.request({
-      method: 'GET',
-      url: `/notifications?role=${userRole}`,
-    });
+    try {
+      return await this.request({
+        method: 'GET',
+        url: `/notifications?role=${userRole}`,
+      });
+    } catch (error) {
+      // Notifications endpoint may not exist, return empty array
+      console.warn('Notifications endpoint not available');
+      return [];
+    }
   }
 
   // Academic years / archive

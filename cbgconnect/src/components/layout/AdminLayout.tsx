@@ -157,29 +157,23 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     }
   };
 
-  // Recursive function to render menu items
-  const renderMenuItems = (items: MenuItem[]): React.ReactNode => {
+  // Convert menu items to items prop format
+  const convertMenuItems = (items: MenuItem[]): any[] => {
     return items.map((item) => {
       if (item.children) {
-        return (
-          <Menu.SubMenu
-            key={item.key}
-            icon={item.icon}
-            title={item.label}
-          >
-            {renderMenuItems(item.children)}
-          </Menu.SubMenu>
-        );
+        return {
+          key: item.key,
+          icon: item.icon,
+          label: item.label,
+          children: convertMenuItems(item.children),
+        };
       }
-      return (
-        <Menu.Item
-          key={item.key}
-          icon={item.icon}
-          onClick={() => handleMenuClick(item)}
-        >
-          {item.label}
-        </Menu.Item>
-      );
+      return {
+        key: item.key,
+        icon: item.icon,
+        label: item.label,
+        onClick: () => handleMenuClick(item),
+      };
     });
   };
   // User dropdown menu
@@ -231,9 +225,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           defaultSelectedKeys={[currentMenuItem?.key || 'dashboard']}
           defaultOpenKeys={['academic']}
           style={{ borderRight: 0 }}
-        >
-          {renderMenuItems(menuItems)}
-        </Menu>
+          items={convertMenuItems(menuItems)}
+        />
       </Sider>
       
       <Layout>
