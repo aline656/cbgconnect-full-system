@@ -22,6 +22,7 @@ const { createAcademicYearsRouter } = require("./routes/academicYears")
 const { createTermsRouter } = require("./routes/terms")
 const { createLessonsRouter } = require("./routes/lessons")
 const { createGradesManagementRouter } = require("./routes/gradesManagement")
+const { createClassesRouter } = require("./routes/classes")
 const { createUsersRouter } = require("./routes/users")
 
 const app = express()
