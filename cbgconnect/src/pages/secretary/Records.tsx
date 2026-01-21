@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiCall } from '@/lib/api';
+import { studentsApi } from '@/services/academicYearApi';
 
 interface StudentRecord {
   id: number;
@@ -65,9 +66,11 @@ interface StudentRecord {
 export default function Records() {
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [gradesList, setGradesList] = useState<string[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentRecord | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -79,12 +82,31 @@ export default function Records() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (selectedGrade !== 'all') params.append('grade', selectedGrade);
-      if (selectedStatus !== 'all') params.append('status', selectedStatus);
+      const filters: any = {};
+      if (selectedGrade !== 'all') filters.grade = selectedGrade;
+      if (selectedStatus !== 'all') filters.status = selectedStatus;
 
-      const response = await apiCall.get(`/api/students?${params}`);
-      setStudents(response);
+      const response = await studentsApi.getAll(filters);
+      const normalized = (response || []).map((r: any) => ({
+        id: r.id || 0,
+        student_id: r.student_id || `S${r.id}`,
+        name: r.name || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        grade: String(r.grade || ''),
+        class_name: r.class_name || r.class || '',
+        gender: r.gender || 'male',
+        date_of_birth: r.date_of_birth || '',
+        status: r.status || 'active',
+        admission_date: r.admission_date || r.created_at || '',
+        contact: {
+          parent_name: r.parent_name || '',
+          parent_phone: r.parent_phone || '',
+          address: r.address || ''
+        }
+      }));
+      setStudents(normalized);
+
+      const grades = Array.from(new Set(normalized.map(s => s.grade).filter(Boolean))).sort() as string[];
+      setGradesList(grades);
     } catch (error) {
       toast.error('Failed to fetch students');
       console.error(error);
@@ -95,69 +117,53 @@ export default function Records() {
 
   const handleAddStudent = async (formData: any) => {
     try {
-      // Create new student record with generated ID
-      const newStudent: StudentRecord = {
-        id: Math.max(...students.map(s => s.id), 0) + 1,
-        student_id: `STU-${Date.now().toString().slice(-6)}`,
+      setSubmitting(true);
+      const payload: any = {
+        student_id: `S${Date.now()}`,
         name: formData.name,
-        grade: formData.grade,
+        gender: formData.gender || 'male',
+        date_of_birth: formData.date_of_birth || null,
+        grade: formData.grade || null,
         class_name: formData.class_name,
-        gender: formData.gender as 'male' | 'female',
-        date_of_birth: formData.date_of_birth,
-        status: 'active',
         admission_date: formData.admission_date,
-        contact: {
-          parent_name: formData.parent_name,
-          parent_phone: formData.parent_phone,
-          address: formData.address
-        },
-        fees: {
-          total_due: 0,
-          total_paid: 0,
-          total_pending: 0
-        }
+        parent_name: formData.parent_name,
+        parent_phone: formData.parent_phone,
+        address: formData.address || null
       };
-
-      // Add to local state (mock)
-      setStudents([...students, newStudent]);
+      
+      const response = await studentsApi.create(payload);
+      await fetchStudents();
       setIsAddDialogOpen(false);
       
-      // In production, this would call API:
-      // const response = await apiCall.post('/api/students', formData);
-      
-      toast.success(`Student ${formData.name} added successfully with ID: ${newStudent.student_id}`);
-    } catch (error) {
-      toast.error('Failed to add student');
+      toast.success(`Student ${formData.name} added successfully`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to add student');
       console.error(error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEditStudent = async (id: number, formData: any) => {
     try {
-      // Update student in local state
-      const updatedStudent = students.find(s => s.id === id);
-      if (updatedStudent) {
-        updatedStudent.name = formData.name;
-        updatedStudent.grade = formData.grade;
-        updatedStudent.class_name = formData.class_name;
-        updatedStudent.status = formData.status;
-        updatedStudent.contact = {
-          parent_name: formData.parent_name,
-          parent_phone: formData.parent_phone,
-          address: formData.address
-        };
-        setStudents([...students]);
-      }
+      setSubmitting(true);
+      const payload: any = {
+        name: formData.name,
+        grade: formData.grade || null,
+        class_name: formData.class_name,
+        status: formData.status,
+      };
       
+      await studentsApi.update(String(id), payload);
+      await fetchStudents();
       setEditingStudent(null);
       
-      // Future API call would go here:
-      // const response = await apiCall.put(`/api/students/${id}`, formData);
-      
       toast.success(`Student ${formData.name} updated successfully`);
-    } catch (error) {
-      toast.error('Failed to update student');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update student');
       console.error(error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -166,13 +172,8 @@ export default function Records() {
 
     try {
       const studentName = students.find(s => s.id === id)?.name || 'Student';
-      
-      // Remove from local state
+      await studentsApi.delete(String(id));
       setStudents(students.filter(s => s.id !== id));
-      
-      // Future API call would go here:
-      // await apiCall.delete(`/api/students/${id}`);
-      
       toast.success(`${studentName} has been deleted`);
     } catch (error) {
       toast.error('Failed to delete student');
@@ -283,10 +284,9 @@ export default function Records() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Grades</SelectItem>
-                  <SelectItem value="9">Grade 9</SelectItem>
-                  <SelectItem value="10">Grade 10</SelectItem>
-                  <SelectItem value="11">Grade 11</SelectItem>
-                  <SelectItem value="12">Grade 12</SelectItem>
+                  {gradesList.map(grade => (
+                    <SelectItem key={grade} value={grade}>Grade {grade}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>

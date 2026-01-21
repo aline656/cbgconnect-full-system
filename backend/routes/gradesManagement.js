@@ -3,6 +3,25 @@ const express = require('express')
 function createGradesManagementRouter({ pool, authRequired, requireRole, apiError }) {
   const router = express.Router()
 
+  // Get reference data for creating grades (students, subjects, terms)
+  router.get('/admin/grades-register-ref', authRequired, async (req, res) => {
+    try {
+      const [studentsRes, subjectsRes, termsRes] = await Promise.all([
+        pool.query('select id, name from students order by name'),
+        pool.query('select id, name, code from subjects order by name'),
+        pool.query('select id, name from terms order by name')
+      ])
+      res.json({
+        students: studentsRes.rows,
+        subjects: subjectsRes.rows,
+        terms: termsRes.rows
+      })
+    } catch (e) {
+      console.error('Failed to fetch reference data', e)
+      apiError(res, 500, 'Failed to fetch reference data')
+    }
+  })
+
   // Get grades (for admin/secretary, optionally filtered)
   router.get('/admin/grades-register', authRequired, async (req, res) => {
     const { academicYearId, termId, subjectId } = req.query
@@ -51,13 +70,12 @@ function createGradesManagementRouter({ pool, authRequired, requireRole, apiErro
   // Create grade
   router.post('/admin/grades-register', authRequired, requireRole('admin', 'secretary', 'teacher'), async (req, res) => {
     const { studentId, subjectId, marksObtained, totalMarks, grade, gradedDate } = req.body
-    const userId = req.user.id
     try {
       const percentage = totalMarks ? (marksObtained / totalMarks * 100).toFixed(2) : 0
       const { rows } = await pool.query(
-        `insert into student_grades (student_id, subject_id, marks_obtained, total_marks, percentage, grade, graded_date, graded_by)
-         values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
-        [studentId, subjectId, marksObtained, totalMarks, percentage, grade, gradedDate, userId]
+        `insert into student_grades (student_id, subject_id, marks_obtained, total_marks, percentage, grade, graded_date)
+         values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+        [studentId, subjectId, marksObtained, totalMarks, percentage, grade, gradedDate]
       )
       res.status(201).json({ id: String(rows[0].id) })
     } catch (e) {

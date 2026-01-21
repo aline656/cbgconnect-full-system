@@ -3,13 +3,32 @@ const express = require('express')
 function createLessonsRouter({ pool, authRequired, requireRole, apiError }) {
   const router = express.Router()
 
+  // Get reference data for creating lessons (teachers, subjects, classes)
+  router.get('/admin/lessons-ref', authRequired, async (req, res) => {
+    try {
+      const [teachersRes, subjectsRes, classesRes] = await Promise.all([
+        pool.query('select id, user_id, subject from teachers order by id'),
+        pool.query('select id, name, code from subjects order by name'),
+        pool.query('select id, name, grade from classes order by name')
+      ])
+      res.json({
+        teachers: teachersRes.rows,
+        subjects: subjectsRes.rows,
+        classes: classesRes.rows
+      })
+    } catch (e) {
+      console.error('Failed to fetch reference data', e)
+      apiError(res, 500, 'Failed to fetch reference data')
+    }
+  })
+
   // Get lessons (by teacher, class, or all for admin)
   router.get('/admin/lessons', authRequired, async (req, res) => {
     const { academicYearId, teacherId, classId } = req.query
     try {
       let query = `
         select l.id, l.teacher_id, l.subject_id, l.class_id, l.title, l.description, l.due_date, l.created_at,
-               t.name as teacher_name, s.name as subject_name, c.name as class_name, c.grade
+               t.id as teacher_id_val, s.id as subject_id_val, c.id as class_id_val
         from assignments l
         join teachers t on l.teacher_id = t.id
         join subjects s on l.subject_id = s.id
@@ -30,15 +49,11 @@ function createLessonsRouter({ pool, authRequired, requireRole, apiError }) {
         params.push(classId)
       }
       query += ' order by l.created_at desc'
-
       const { rows } = await pool.query(query, params)
       const normalized = rows.map(r => ({
         id: String(r.id),
         teacherId: String(r.teacher_id),
-        teacherName: r.teacher_name,
-        subjectName: r.subject_name,
-        grade: r.grade,
-        className: r.class_name,
+        subjectId: String(r.subject_id),
         classId: String(r.class_id),
         title: r.title,
         description: r.description,

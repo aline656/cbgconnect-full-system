@@ -1,10 +1,10 @@
-import { useState } from "react"
-import { Plus, Edit2, Trash2, Download, Filter, Search, AlertCircle, Users } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Plus, Edit2, Trash2, Download, Search, AlertCircle, Users } from "lucide-react"
 import { toast } from "sonner"
+import { studentsApi } from "@/services/academicYearApi"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,49 +27,6 @@ interface StudentRecord {
   createdAt: string
 }
 
-const mockStudents: StudentRecord[] = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    email: 'alice@school.com',
-    phone: '0789123456',
-    class: '10A',
-    academicYear: '2024-2025',
-    enrollmentDate: '2024-09-01',
-    status: 'active',
-    guardianName: 'John Johnson',
-    guardianPhone: '0789654321',
-    notes: 'Excellent student',
-    createdAt: '2024-09-01'
-  },
-  {
-    id: '2',
-    name: 'Bob Williams',
-    email: 'bob@school.com',
-    phone: '0789123457',
-    class: '10B',
-    academicYear: '2024-2025',
-    enrollmentDate: '2024-09-01',
-    status: 'active',
-    guardianName: 'Jane Williams',
-    guardianPhone: '0789654322',
-    createdAt: '2024-09-01'
-  },
-  {
-    id: '3',
-    name: 'Carol Davis',
-    email: 'carol@school.com',
-    phone: '0789123458',
-    class: '11A',
-    academicYear: '2024-2025',
-    enrollmentDate: '2024-09-01',
-    status: 'active',
-    guardianName: 'Michael Davis',
-    guardianPhone: '0789654323',
-    notes: 'Needs support in Math',
-    createdAt: '2024-09-01'
-  }
-]
 
 interface StudentRecordsProps {
   activeAcademicYear?: string
@@ -80,7 +37,9 @@ export default function StudentRecords({
   activeAcademicYear = '2024-2025',
   userRole = 'admin'
 }: StudentRecordsProps) {
-  const [students, setStudents] = useState<StudentRecord[]>(mockStudents)
+  const [students, setStudents] = useState<StudentRecord[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [classesList, setClassesList] = useState<string[]>([])
   const [isOpenDialog, setIsOpenDialog] = useState(false)
   const [editingStudent, setEditingStudent] = useState<StudentRecord | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -94,6 +53,7 @@ export default function StudentRecords({
     class: '',
     guardianName: '',
     guardianPhone: '',
+    address: '',
     notes: ''
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -121,44 +81,60 @@ export default function StudentRecords({
       toast.error('Please fix the errors in the form')
       return
     }
+    setSubmitting(true)
+    ;(async () => {
+      try {
+        if (editingStudent) {
+          // update via API
+          const payload: any = {
+            name: formData.name,
+            class_name: formData.class,
+            parent_name: formData.guardianName,
+            parent_phone: formData.guardianPhone,
+            address: formData.address,
+          }
+          await studentsApi.update(editingStudent.id, payload)
+          toast.success('Student record updated successfully')
+        } else {
+          // create via API
+          const payload: any = {
+            student_id: `S${Date.now()}`,
+            name: formData.name,
+            gender: 'unspecified',
+            date_of_birth: null,
+            grade: parseInt((formData.class || '').match(/^\d+/)?.[0] || '0', 10) || null,
+            class_name: formData.class,
+            admission_date: new Date().toISOString().split('T')[0],
+            parent_name: formData.guardianName,
+            parent_phone: formData.guardianPhone,
+            parent_email: formData.email || null,
+            address: formData.address || null
+          }
+          await studentsApi.create(payload)
+          toast.success('Student registered successfully for ' + selectedYear)
+        }
 
-    if (editingStudent) {
-      // Update student
-      setStudents(students.map(s =>
-        s.id === editingStudent.id
-          ? {
-              ...s,
-              ...formData,
-              academicYear: selectedYear
-            }
-          : s
-      ))
-      toast.success('Student record updated successfully')
-    } else {
-      // Create new student
-      const newStudent: StudentRecord = {
-        id: Date.now().toString(),
-        ...formData,
-        academicYear: selectedYear,
-        enrollmentDate: new Date().toISOString().split('T')[0],
-        status: 'active',
-        createdAt: new Date().toISOString().split('T')[0]
+        // refresh students list
+        await fetchStudents()
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          class: '',
+          guardianName: '',
+          guardianPhone: '',
+          address: '',
+          notes: ''
+        })
+        setEditingStudent(null)
+        setIsOpenDialog(false)
+      } catch (e: any) {
+        console.error('Failed saving student', e)
+        toast.error(e?.message || 'Failed to save student')
+      } finally {
+        setSubmitting(false)
       }
-      setStudents([...students, newStudent])
-      toast.success('Student registered successfully for ' + selectedYear)
-    }
-
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      class: '',
-      guardianName: '',
-      guardianPhone: '',
-      notes: ''
-    })
-    setEditingStudent(null)
-    setIsOpenDialog(false)
+    })()
   }
 
   const handleEdit = (student: StudentRecord) => {
@@ -171,6 +147,7 @@ export default function StudentRecords({
       class: student.class,
       guardianName: student.guardianName,
       guardianPhone: student.guardianPhone,
+      address: student.notes || '',
       notes: student.notes || ''
     })
     setIsOpenDialog(true)
@@ -178,8 +155,16 @@ export default function StudentRecords({
 
   const handleDelete = (id: string) => {
     if (window.confirm('Are you sure you want to delete this student record?')) {
-      setStudents(students.filter(s => s.id !== id))
-      toast.success('Student record deleted')
+      ;(async () => {
+        try {
+          await studentsApi.delete(id)
+          setStudents(students.filter(s => s.id !== id))
+          toast.success('Student record deleted')
+        } catch (e) {
+          console.error('Failed to delete student', e)
+          toast.error('Failed to delete student')
+        }
+      })()
     }
   }
 
@@ -187,8 +172,49 @@ export default function StudentRecords({
     setStudents(students.map(s =>
       s.id === id ? { ...s, status: newStatus } : s
     ))
-    toast.success('Student status updated')
+    ;(async () => {
+      try {
+        await studentsApi.update(id, { status: newStatus })
+        toast.success('Student status updated')
+      } catch (e) {
+        console.error('Failed to update status', e)
+        toast.error('Failed to update status')
+      }
+    })()
   }
+
+  const fetchStudents = async () => {
+    try {
+      const rows: any[] = await studentsApi.getAll()
+      const normalized = (rows || []).map((r: any) => ({
+        id: String(r.id),
+        name: r.name || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        email: r.email || r.parent_email || '',
+        phone: r.phone || '',
+        class: r.class_name || r.class || '',
+        academicYear: r.admission_date ? `${new Date(r.admission_date).getFullYear()}-${new Date(r.admission_date).getFullYear() + 1}` : selectedYear,
+        enrollmentDate: r.admission_date || r.admissionDate || r.created_at || null,
+        status: r.status || 'active',
+        guardianName: r.parent_name || '',
+        guardianPhone: r.parent_phone || '',
+        notes: r.notes || '',
+        createdAt: r.created_at || r.createdAt || null,
+      }))
+
+      setStudents(normalized)
+
+      // derive classes
+      const classes = Array.from(new Set(normalized.map(s => s.class).filter(Boolean)))
+      setClassesList(classes)
+    } catch (e) {
+      console.error('Failed to load students', e)
+      toast.error('Failed to load students')
+    }
+  }
+
+  useEffect(() => {
+    fetchStudents()
+  }, [])
 
   // Filter students
   let filteredStudents = students.filter(s => {
@@ -201,25 +227,14 @@ export default function StudentRecords({
   })
 
   const uniqueClasses = Array.from(new Set(students.map(s => s.class)))
+  // use classesList if available
+  const classOptions = classesList.length ? classesList : uniqueClasses
   const academicYears = ['2024-2025', '2023-2024', '2022-2023']
 
   const statistics = {
     active: filteredStudents.filter(s => s.status === 'active').length,
     inactive: filteredStudents.filter(s => s.status === 'inactive').length,
     transferred: filteredStudents.filter(s => s.status === 'transferred').length
-  }
-
-  const statusColor = (status: string) => {
-    switch(status) {
-      case 'active':
-        return 'bg-green-100 text-green-800'
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800'
-      case 'transferred':
-        return 'bg-blue-100 text-blue-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
   }
 
   return (
@@ -244,6 +259,7 @@ export default function StudentRecords({
                     class: '',
                     guardianName: '',
                     guardianPhone: '',
+                    address: '',
                     notes: ''
                   })
                 }}
@@ -289,13 +305,13 @@ export default function StudentRecords({
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[9, 10, 11, 12].map(grade => (
-                          ['A', 'B', 'C', 'D'].map(suffix => (
-                            <SelectItem key={`${grade}${suffix}`} value={`${grade}${suffix}`}>
-                              {grade}{suffix}
-                            </SelectItem>
+                        {classOptions.length === 0 ? (
+                          <div className="p-2 text-sm text-gray-500">No classes found</div>
+                        ) : (
+                          classOptions.map(cls => (
+                            <SelectItem key={cls} value={cls}>{cls}</SelectItem>
                           ))
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                     {errors.class && <p className="text-sm text-red-500 mt-1">{errors.class}</p>}
@@ -402,7 +418,7 @@ export default function StudentRecords({
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                  <Button type="submit" className={`bg-blue-600 hover:bg-blue-700 ${submitting ? 'opacity-60 cursor-not-allowed' : ''}`} disabled={submitting}>
                     {editingStudent ? 'Update Student' : 'Register Student'}
                   </Button>
                 </div>
@@ -475,7 +491,7 @@ export default function StudentRecords({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Classes</SelectItem>
-                  {uniqueClasses.map(cls => (
+                  {classOptions.map(cls => (
                     <SelectItem key={cls} value={cls}>{cls}</SelectItem>
                   ))}
                 </SelectContent>
@@ -590,7 +606,7 @@ export default function StudentRecords({
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-6">
           <div className="flex gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
               <h4 className="font-semibold text-blue-900">Student Registration Guidelines</h4>
               <ul className="text-sm text-blue-800 mt-2 space-y-1">

@@ -3,17 +3,32 @@ const express = require('express')
 function createAcademicYearsRouter({ pool, authRequired, requireRole, apiError }) {
   const router = express.Router()
 
-  // List archived academic years
+  // List all academic years (active and archived)
   router.get('/admin/academic-years', authRequired, async (req, res) => {
     try {
       const { rows } = await pool.query(
-        `select id, year, start_date, end_date, total_students, average_gpa, archived_at
-         from academic_years where archived = true order by start_date desc`
+        `select id, year, start_date, end_date, total_students, average_gpa, archived_at, archived
+         from academic_years order by start_date desc`
       )
       res.json(rows)
     } catch (e) {
       console.error('Failed to fetch academic years', e)
       apiError(res, 500, 'Failed to fetch academic years')
+    }
+  })
+
+  // Get the active academic year (not archived)
+  router.get('/admin/academic-years/active/current', authRequired, async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `select id, year, start_date, end_date, total_students, average_gpa, archived_at, archived
+         from academic_years where archived = false order by start_date desc limit 1`
+      )
+      if (!rows[0]) return apiError(res, 404, 'No active academic year found')
+      res.json(rows[0])
+    } catch (e) {
+      console.error('Failed to fetch active academic year', e)
+      apiError(res, 500, 'Failed to fetch active academic year')
     }
   })
 

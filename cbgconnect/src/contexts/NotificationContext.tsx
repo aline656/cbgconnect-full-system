@@ -30,12 +30,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const userRole = localStorage.getItem('userRole') || 'all';
-      const data = await apiService.getNotifications(userRole) as Notification[];
-      setNotifications(data);
-      setError(null);
+      try {
+        const data = await apiService.getNotifications(userRole) as Notification[];
+        setNotifications(data);
+        setError(null);
+      } catch (apiErr: any) {
+        // If endpoint doesn't exist (404), set empty notifications instead of erroring
+        if (apiErr.response?.status === 404) {
+          setNotifications([]);
+          setError(null);
+        } else {
+          throw apiErr;
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch notifications');
       console.error('Failed to fetch notifications:', err);
+      setNotifications([]); // fallback to empty
     } finally {
       setLoading(false);
     }

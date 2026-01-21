@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Archive, Download, Eye, BarChart3, AlertCircle, Calendar } from "lucide-react"
 import { toast } from "sonner"
-import api from "@/services/api"
+import { archivesApi } from "@/services/academicYearApi"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,9 +46,42 @@ export default function AcademicYearArchive() {
 
   const handleViewDetails = (year: AcademicYearArchive) => {
     // fetch details for selected year
-    api.getAcademicYearDetails(year.id)
-      .then((data) => {
-        setSelectedYear(data)
+    archivesApi.getById(year.id)
+      .then(async (data: any) => {
+        // ensure students are loaded
+        let students = data.students
+        if (!students) {
+          try {
+            students = await archivesApi.getStudents(year.id)
+          } catch (e) {
+            students = []
+          }
+        }
+
+        const normalizedStudents = (students || []).map((s: any) => ({
+          id: String(s.id),
+          name: s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim(),
+          email: s.email,
+          phone: s.phone,
+          class: s.class || s.class_name || s.grade_class,
+          academicYear: s.academic_year || s.academicYear || year.year,
+          finalGPA: Number(s.final_gpa || s.finalGPA || 0),
+          status: s.status || s.final_status || 'promoted',
+          createdAt: s.created_at || s.createdAt || null,
+        }))
+
+        const normalized = {
+          id: String(data.id || year.id),
+          year: data.year || year.year,
+          startDate: data.start_date || data.startDate || year.startDate,
+          endDate: data.end_date || data.endDate || year.endDate,
+          totalStudents: data.total_students || data.totalStudents || normalizedStudents.length || 0,
+          averageGPA: Number(data.average_gpa || data.averageGPA || 0),
+          archivedDate: data.archived_at || data.archivedDate || year.archivedDate,
+          students: normalizedStudents,
+        }
+
+        setSelectedYear(normalized)
         setIsOpenDetailsDialog(true)
       })
       .catch((err) => {
@@ -63,17 +96,17 @@ export default function AcademicYearArchive() {
   }
 
   useEffect(() => {
-    api.getArchivedAcademicYears()
-      .then((rows) => {
+    archivesApi.getAll()
+      .then((rows: any[]) => {
         // normalize fields to component type
         const normalized = (rows || []).map((r: any) => ({
           id: String(r.id),
           year: r.year,
           startDate: r.start_date || r.startDate,
           endDate: r.end_date || r.endDate,
-          totalStudents: r.total_students || 0,
-          averageGPA: Number(r.average_gpa || 0),
-          archivedDate: r.archived_at || null,
+          totalStudents: r.total_students || r.totalStudents || 0,
+          averageGPA: Number(r.average_gpa || r.averageGPA || 0),
+          archivedDate: r.archived_at || r.archivedDate || null,
           students: [] as any[],
         }))
         setArchivedYears(normalized)

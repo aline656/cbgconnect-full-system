@@ -182,21 +182,73 @@ function createStudentsRouter({ pool, authRequired, requireRole, apiError }) {
         }
       }
 
-      if (!fields.length) {
+      if (!fields.length && !updates.parent_name && !updates.parent_phone && !updates.address) {
         apiError(res, 400, "No fields to update")
         return
       }
 
-      values.push(id)
-      const query = `update students set ${fields.join(", ")}, updated_at = now() where id = $${paramCount} returning *`
-      const result = await pool.query(query, values)
+      const client = await pool.connect()
+      try {
+        await client.query("begin")
 
-      if (!result.rows.length) {
-        apiError(res, 404, "Student not found")
-        return
+        // Update student fields if any
+        let student = null
+        if (fields.length) {
+          values.push(id)
+          const query = `update students set ${fields.join(", ")}, updated_at = now() where id = $${paramCount} returning *`
+          const result = await client.query(query, values)
+
+          if (!result.rows.length) {
+            await client.query("rollback")
+            apiError(res, 404, "Student not found")
+            return
+          }
+          student = result.rows[0]
+        }
+
+        // Update contact info if provided
+        if (updates.parent_name || updates.parent_phone || updates.address) {
+          // Check if contact record exists
+          const contactCheck = await client.query(
+            "select * from student_contact where student_id = $1",
+            [id]
+          )
+
+          if (contactCheck.rows.length) {
+            // Update existing contact
+            await client.query(
+              `update student_contact 
+               set parent_name = coalesce($1, parent_name),
+                   parent_phone = coalesce($2, parent_phone),
+                   address = coalesce($3, address)
+               where student_id = $4`,
+              [updates.parent_name || null, updates.parent_phone || null, updates.address || null, id]
+            )
+          } else {
+            // Create new contact record
+            await client.query(
+              `insert into student_contact (student_id, parent_name, parent_phone, address)
+               values ($1, $2, $3, $4)`,
+              [id, updates.parent_name, updates.parent_phone, updates.address]
+            )
+          }
+        }
+
+        await client.query("commit")
+
+        // Fetch and return updated student with contact info
+        if (!student) {
+          const result = await pool.query("select * from students where id = $1", [id])
+          student = result.rows[0]
+        }
+
+        res.json(student)
+      } catch (e) {
+        await client.query("rollback")
+        throw e
+      } finally {
+        client.release()
       }
-
-      res.json(result.rows[0])
     } catch (e) {
       apiError(res, 500, `Failed to update student: ${e.message}`)
     }

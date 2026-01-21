@@ -40,49 +40,49 @@ apiClient.interceptors.response.use(
 export const academicYearApi = {
   // Get all academic years
   getAll: async () => {
-    const response = await apiClient.get('/academic-years')
+    const response = await apiClient.get('/admin/academic-years')
     return response.data
   },
 
   // Get active academic year
   getActive: async () => {
-    const response = await apiClient.get('/academic-years/active')
+    const response = await apiClient.get('/admin/academic-years/active')
     return response.data
   },
 
   // Get specific academic year by ID
   getById: async (id: string) => {
-    const response = await apiClient.get(`/academic-years/${id}`)
+    const response = await apiClient.get(`/admin/academic-years/${id}`)
     return response.data
   },
 
   // Create new academic year
   create: async (data: any) => {
-    const response = await apiClient.post('/academic-years', data)
+    const response = await apiClient.post('/admin/academic-years', data)
     return response.data
   },
 
   // Update academic year
   update: async (id: string, data: any) => {
-    const response = await apiClient.put(`/academic-years/${id}`, data)
+    const response = await apiClient.put(`/admin/academic-years/${id}`, data)
     return response.data
   },
 
   // Activate academic year
   activate: async (id: string) => {
-    const response = await apiClient.put(`/academic-years/${id}/activate`, {})
+    const response = await apiClient.put(`/admin/academic-years/${id}/activate`, {})
     return response.data
   },
 
   // Archive academic year
   archive: async (id: string) => {
-    const response = await apiClient.put(`/academic-years/${id}/archive`, {})
+    const response = await apiClient.put(`/admin/academic-years/${id}/archive`, {})
     return response.data
   },
 
   // Delete academic year
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/academic-years/${id}`)
+    const response = await apiClient.delete(`/admin/academic-years/${id}`)
     return response.data
   },
 }
@@ -322,19 +322,19 @@ export const studentsApi = {
 export const archivesApi = {
   // Get all archived years
   getAll: async () => {
-    const response = await apiClient.get('/archives')
+    const response = await apiClient.get('/admin/academic-years')
     return response.data
   },
 
   // Get specific archive
   getById: async (archiveId: string) => {
-    const response = await apiClient.get(`/archives/${archiveId}`)
+    const response = await apiClient.get(`/admin/academic-years/${archiveId}`)
     return response.data
   },
 
   // Get archived students for a year
   getStudents: async (archiveId: string, filters?: { status?: string }) => {
-    const response = await apiClient.get(`/archives/${archiveId}/students`, {
+    const response = await apiClient.get(`/admin/academic-years/${archiveId}`, {
       params: filters,
     })
     return response.data
@@ -342,7 +342,7 @@ export const archivesApi = {
 
   // Export archive as file
   export: async (archiveId: string, format: 'csv' | 'pdf' | 'xlsx' = 'csv') => {
-    const response = await apiClient.get(`/archives/${archiveId}/export`, {
+    const response = await apiClient.get(`/admin/academic-years/${archiveId}/export`, {
       params: { format },
       responseType: 'blob',
     })
@@ -351,7 +351,7 @@ export const archivesApi = {
 
   // Create archive from academic year
   create: async (academicYearId: string) => {
-    const response = await apiClient.post('/archives', { academicYearId })
+    const response = await apiClient.post('/admin/academic-years', { academicYearId })
     return response.data
   },
 }

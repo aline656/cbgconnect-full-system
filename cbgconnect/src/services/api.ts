@@ -308,6 +308,13 @@ class ApiService {
     });
   }
 
+  async getActiveAcademicYear() {
+    return this.request({
+      method: 'GET',
+      url: '/admin/academic-years/active/current',
+    });
+  }
+
   async createAcademicYear(yearData: any) {
     return this.request({
       method: 'POST',
@@ -439,6 +446,20 @@ class ApiService {
     return this.request({
       method: 'DELETE',
       url: `/admin/grades-register/${gradeId}`,
+    });
+  }
+
+  async getGradeRefData() {
+    return this.request({
+      method: 'GET',
+      url: '/admin/grades-register-ref',
+    });
+  }
+
+  async getLessonsRefData() {
+    return this.request({
+      method: 'GET',
+      url: '/admin/lessons-ref',
     });
   }
 

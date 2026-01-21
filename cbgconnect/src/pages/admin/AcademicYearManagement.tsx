@@ -78,21 +78,19 @@ export default function AcademicYearManagement() {
 
     try {
       setSubmitting(true)
+      const payload = {
+        year: formData.year.trim(),
+        start_date: formData.startDate,
+        end_date: formData.endDate
+      }
+      
       if (editingYear) {
         // Update existing year
-        await academicYearApi.update(editingYear.id, {
-          year: formData.year,
-          startDate: formData.startDate,
-          endDate: formData.endDate
-        })
+        await academicYearApi.update(editingYear.id, payload)
         toast.success('Academic year updated successfully')
       } else {
         // Create new year
-        await academicYearApi.create({
-          year: formData.year,
-          startDate: formData.startDate,
-          endDate: formData.endDate
-        })
+        await academicYearApi.create(payload)
         toast.success(`Academic year ${formData.year} created successfully`)
       }
       
@@ -100,9 +98,9 @@ export default function AcademicYearManagement() {
       setFormData({ year: '', startDate: '', endDate: '' })
       setEditingYear(null)
       setIsOpenDialog(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save academic year:', error)
-      toast.error('Failed to save academic year')
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to save academic year')
     } finally {
       setSubmitting(false)
     }
